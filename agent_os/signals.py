@@ -15,6 +15,7 @@ Design:
       insight when a signal fires, enabling the signal → diagnose →
       experiment → promote/rollback loop.
 """
+
 from __future__ import annotations
 
 import logging

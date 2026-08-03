@@ -45,8 +45,11 @@ def _get(routes, path, body=None, **params):
 
 class TestCreateTenant:
     def test_happy_path(self, routes):
-        status, payload = _post(routes, "/api/agent-os/tenants",
-            {"tenant_id": "acme", "name": "Acme Corp", "admin_email": "alice"})
+        status, payload = _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme Corp", "admin_email": "alice"},
+        )
         assert status == 201
         assert payload["tenant_id"] == "acme"
         assert payload["name"] == "Acme Corp"
@@ -56,37 +59,57 @@ class TestCreateTenant:
         assert "admin" in [r["role"] for r in payload["rbac"]]
 
     def test_missing_admin_email(self, routes):
-        status, payload = _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme"})
+        status, payload = _post(
+            routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme"}
+        )
         assert status == 400
         assert "admin_email" in payload["error"]
 
     def test_missing_tenant_id(self, routes):
-        status, payload = _post(routes, "/api/agent-os/tenants", {"name": "Acme", "admin_email": "alice"})
+        status, payload = _post(
+            routes, "/api/agent-os/tenants", {"name": "Acme", "admin_email": "alice"}
+        )
         assert status == 400
         assert "tenant_id" in payload["error"]
 
     def test_invalid_tenant_id(self, routes):
-        status, payload = _post(routes, "/api/agent-os/tenants",
-            {"tenant_id": "Acme_Corp", "name": "Acme", "admin_email": "alice"})
+        status, payload = _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "Acme_Corp", "name": "Acme", "admin_email": "alice"},
+        )
         assert status == 500
 
     def test_duplicate_tenant(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
-        status, payload = _post(routes, "/api/agent-os/tenants",
-            {"tenant_id": "acme", "name": "Acme 2", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
+        status, payload = _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme 2", "admin_email": "alice"},
+        )
         assert status == 500
 
     def test_with_projects(self, routes, tmp_path):
         proj = tmp_path / "project"
         proj.mkdir()
-        status, payload = _post(routes, "/api/agent-os/tenants",
-            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice", "projects": [str(proj)]})
+        status, payload = _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice", "projects": [str(proj)]},
+        )
         assert status == 201
         assert len(payload["projects"]) == 1
 
     def test_default_tier(self, routes):
-        status, payload = _post(routes, "/api/agent-os/tenants",
-            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        status, payload = _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         assert payload["tier"] == "free"
 
 
@@ -98,8 +121,16 @@ class TestListTenants:
         assert payload["count"] == 0
 
     def test_lists_accessible(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "other", "name": "Other", "admin_email": "bob"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "other", "name": "Other", "admin_email": "bob"},
+        )
         status, payload = _get(routes, "/api/agent-os/tenants", {"email": "alice"})
         assert status == 200
         assert payload["count"] == 1
@@ -112,21 +143,32 @@ class TestListTenants:
 
 class TestGetTenant:
     def test_happy_path(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         status, payload = routes[("GET", "/api/agent-os/tenants/{tenant_id}")](
-            {"email": "alice"}, tenant_id="acme")
+            {"email": "alice"}, tenant_id="acme"
+        )
         assert status == 200
         assert payload["tenant_id"] == "acme"
 
     def test_access_denied(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         status, payload = routes[("GET", "/api/agent-os/tenants/{tenant_id}")](
-            {"email": "bob"}, tenant_id="acme")
+            {"email": "bob"}, tenant_id="acme"
+        )
         assert status == 403
 
     def test_tenant_not_found(self, routes):
         status, payload = routes[("GET", "/api/agent-os/tenants/{tenant_id}")](
-            {"email": "alice"}, tenant_id="ghost")
+            {"email": "alice"}, tenant_id="ghost"
+        )
         assert status == 404
 
     def test_missing_email(self, routes):
@@ -136,90 +178,149 @@ class TestGetTenant:
 
 class TestAddProject:
     def test_happy_path(self, routes, tmp_path):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         proj = tmp_path / "newproj"
         proj.mkdir()
         status, payload = routes[("POST", "/api/agent-os/tenants/{tenant_id}/projects")](
-            {"email": "alice", "project_path": str(proj)}, tenant_id="acme")
+            {"email": "alice", "project_path": str(proj)}, tenant_id="acme"
+        )
         assert status == 200
         assert len(payload["projects"]) == 1
 
     def test_viewer_cannot_add(self, routes, tmp_path):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         routes[("POST", "/api/agent-os/tenants/{tenant_id}/rbac")](
-            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme")
+            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme"
+        )
         proj = tmp_path / "failproj"
         proj.mkdir()
         status, payload = routes[("POST", "/api/agent-os/tenants/{tenant_id}/projects")](
-            {"email": "alice", "project_path": str(proj)}, tenant_id="acme")
+            {"email": "alice", "project_path": str(proj)}, tenant_id="acme"
+        )
         assert status == 403
 
     def test_missing_project_path(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         status, payload = routes[("POST", "/api/agent-os/tenants/{tenant_id}/projects")](
-            {"email": "alice"}, tenant_id="acme")
+            {"email": "alice"}, tenant_id="acme"
+        )
         assert status == 400
 
 
 class TestDeleteTenant:
     def test_happy_path(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         status, payload = routes[("DELETE", "/api/agent-os/tenants/{tenant_id}")](
-            {"email": "alice"}, tenant_id="acme")
+            {"email": "alice"}, tenant_id="acme"
+        )
         assert status == 200
         assert payload["deleted"] == "acme"
 
     def test_viewer_cannot_delete(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         routes[("POST", "/api/agent-os/tenants/{tenant_id}/rbac")](
-            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme")
+            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme"
+        )
         status, payload = routes[("DELETE", "/api/agent-os/tenants/{tenant_id}")](
-            {"email": "alice"}, tenant_id="acme")
+            {"email": "alice"}, tenant_id="acme"
+        )
         assert status == 403
 
     def test_missing_email(self, routes):
-        status, payload = routes[("DELETE", "/api/agent-os/tenants/{tenant_id}")]({}, tenant_id="acme")
+        status, payload = routes[("DELETE", "/api/agent-os/tenants/{tenant_id}")](
+            {}, tenant_id="acme"
+        )
         assert status == 401
 
 
 class TestAssignRole:
     def test_happy_path(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         status, payload = routes[("POST", "/api/agent-os/tenants/{tenant_id}/rbac")](
-            {"email": "alice", "target_email": "alice", "role": "operator"}, tenant_id="acme")
+            {"email": "alice", "target_email": "alice", "role": "operator"}, tenant_id="acme"
+        )
         assert status == 200
         emails = [r["email"] for r in payload["rbac"]]
         assert "alice" in emails
 
     def test_viewer_cannot_assign(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         routes[("POST", "/api/agent-os/tenants/{tenant_id}/rbac")](
-            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme")
+            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme"
+        )
         status, payload = routes[("POST", "/api/agent-os/tenants/{tenant_id}/rbac")](
-            {"email": "alice", "target_email": "alice", "role": "admin"}, tenant_id="acme")
+            {"email": "alice", "target_email": "alice", "role": "admin"}, tenant_id="acme"
+        )
         assert status == 403
 
     def test_missing_target_email(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         status, payload = routes[("POST", "/api/agent-os/tenants/{tenant_id}/rbac")](
-            {"email": "alice", "role": "operator"}, tenant_id="acme")
+            {"email": "alice", "role": "operator"}, tenant_id="acme"
+        )
         assert status == 400
 
 
 class TestGetSignals:
     def test_happy_path(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         routes[("POST", "/api/agent-os/signals")](
-            {"tenant_id": "acme", "email": "alice", "metric_name": "latency", "value": 100.0})
-        status, payload = _get(routes, "/api/agent-os/signals", {"tenant_id": "acme", "email": "alice"})
+            {"tenant_id": "acme", "email": "alice", "metric_name": "latency", "value": 100.0}
+        )
+        status, payload = _get(
+            routes, "/api/agent-os/signals", {"tenant_id": "acme", "email": "alice"}
+        )
         assert status == 200
         assert payload["tracked_count"] == 1
 
     def test_viewer_can_view(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         routes[("POST", "/api/agent-os/tenants/{tenant_id}/rbac")](
-            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme")
-        status, payload = _get(routes, "/api/agent-os/signals", {"tenant_id": "acme", "email": "alice"})
+            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme"
+        )
+        status, payload = _get(
+            routes, "/api/agent-os/signals", {"tenant_id": "acme", "email": "alice"}
+        )
         assert status == 200
 
     def test_missing_tenant_id(self, routes):
@@ -229,73 +330,161 @@ class TestGetSignals:
 
 class TestPushSignal:
     def test_happy_path(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
-        status, payload = _post(routes, "/api/agent-os/signals",
-            {"tenant_id": "acme", "email": "alice", "metric_name": "latency", "value": 100.0})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
+        status, payload = _post(
+            routes,
+            "/api/agent-os/signals",
+            {"tenant_id": "acme", "email": "alice", "metric_name": "latency", "value": 100.0},
+        )
         assert status == 200
         assert payload["metric"] == "latency"
         assert payload["value"] == 100.0
 
     def test_viewer_cannot_push(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         routes[("POST", "/api/agent-os/tenants/{tenant_id}/rbac")](
-            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme")
-        status, payload = _post(routes, "/api/agent-os/signals",
-            {"tenant_id": "acme", "email": "alice", "metric_name": "latency", "value": 100.0})
+            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme"
+        )
+        status, payload = _post(
+            routes,
+            "/api/agent-os/signals",
+            {"tenant_id": "acme", "email": "alice", "metric_name": "latency", "value": 100.0},
+        )
         assert status == 403
 
     def test_missing_metric_name(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
-        status, payload = _post(routes, "/api/agent-os/signals",
-            {"tenant_id": "acme", "email": "alice", "value": 100.0})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
+        status, payload = _post(
+            routes, "/api/agent-os/signals", {"tenant_id": "acme", "email": "alice", "value": 100.0}
+        )
         assert status == 400
 
     def test_invalid_value(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
-        status, payload = _post(routes, "/api/agent-os/signals",
-            {"tenant_id": "acme", "email": "alice", "metric_name": "latency", "value": "abc"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
+        status, payload = _post(
+            routes,
+            "/api/agent-os/signals",
+            {"tenant_id": "acme", "email": "alice", "metric_name": "latency", "value": "abc"},
+        )
         assert status == 400
 
 
 class TestRunExperiment:
     def test_happy_path(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
-        status, payload = _post(routes, "/api/agent-os/experiments",
-            {"tenant_id": "acme", "email": "alice", "proposal_id": "p1",
-             "metric_name": "latency_ms", "baseline_value": 100.0, "candidate_value": 90.0})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
+        status, payload = _post(
+            routes,
+            "/api/agent-os/experiments",
+            {
+                "tenant_id": "acme",
+                "email": "alice",
+                "proposal_id": "p1",
+                "metric_name": "latency_ms",
+                "baseline_value": 100.0,
+                "candidate_value": 90.0,
+            },
+        )
         assert status == 200
         assert payload["verdict"] in ("promoted", "rolled_back", "rejected")
         assert payload["delta"] != 0
 
     def test_viewer_cannot_run(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         routes[("POST", "/api/agent-os/tenants/{tenant_id}/rbac")](
-            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme")
-        status, payload = _post(routes, "/api/agent-os/experiments",
-            {"tenant_id": "acme", "email": "alice", "proposal_id": "p1",
-             "metric_name": "latency_ms", "baseline_value": 100.0, "candidate_value": 90.0})
+            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme"
+        )
+        status, payload = _post(
+            routes,
+            "/api/agent-os/experiments",
+            {
+                "tenant_id": "acme",
+                "email": "alice",
+                "proposal_id": "p1",
+                "metric_name": "latency_ms",
+                "baseline_value": 100.0,
+                "candidate_value": 90.0,
+            },
+        )
         assert status == 403
 
     def test_missing_baseline(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
-        status, payload = _post(routes, "/api/agent-os/experiments",
-            {"tenant_id": "acme", "email": "alice", "proposal_id": "p1", "metric_name": "latency_ms"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
+        status, payload = _post(
+            routes,
+            "/api/agent-os/experiments",
+            {
+                "tenant_id": "acme",
+                "email": "alice",
+                "proposal_id": "p1",
+                "metric_name": "latency_ms",
+            },
+        )
         assert status == 400
 
 
 class TestListExperiments:
     def test_happy_path(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
-        _post(routes, "/api/agent-os/experiments",
-            {"tenant_id": "acme", "email": "alice", "proposal_id": "p1",
-             "metric_name": "latency_ms", "baseline_value": 100.0, "candidate_value": 90.0})
-        status, payload = _get(routes, "/api/agent-os/experiments", {"tenant_id": "acme", "email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
+        _post(
+            routes,
+            "/api/agent-os/experiments",
+            {
+                "tenant_id": "acme",
+                "email": "alice",
+                "proposal_id": "p1",
+                "metric_name": "latency_ms",
+                "baseline_value": 100.0,
+                "candidate_value": 90.0,
+            },
+        )
+        status, payload = _get(
+            routes, "/api/agent-os/experiments", {"tenant_id": "acme", "email": "alice"}
+        )
         assert status == 200
         assert payload["count"] == 1
 
     def test_viewer_can_view(self, routes):
-        _post(routes, "/api/agent-os/tenants", {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"})
+        _post(
+            routes,
+            "/api/agent-os/tenants",
+            {"tenant_id": "acme", "name": "Acme", "admin_email": "alice"},
+        )
         routes[("POST", "/api/agent-os/tenants/{tenant_id}/rbac")](
-            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme")
-        status, payload = _get(routes, "/api/agent-os/experiments", {"tenant_id": "acme", "email": "alice"})
+            {"email": "alice", "target_email": "alice", "role": "viewer"}, tenant_id="acme"
+        )
+        status, payload = _get(
+            routes, "/api/agent-os/experiments", {"tenant_id": "acme", "email": "alice"}
+        )
         assert status == 200

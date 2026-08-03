@@ -6,6 +6,7 @@ All new code should use AgentOSStore directly.
 Retained for backward compatibility with existing imports.
 Thread-safe via a module-level lock.
 """
+
 from __future__ import annotations
 
 import logging
@@ -72,7 +73,9 @@ def get_proposal(proposal_id: str, base_dir: Path | None = None) -> dict[str, An
     return store.get_proposal("default", proposal_id)
 
 
-def update_proposal(proposal_id: str, changes: dict[str, Any], base_dir: Path | None = None) -> dict[str, Any] | None:
+def update_proposal(
+    proposal_id: str, changes: dict[str, Any], base_dir: Path | None = None
+) -> dict[str, Any] | None:
     """Update a proposal and persist the change."""
     store = get_store()
     return store.update_proposal("default", proposal_id, changes)
@@ -92,6 +95,7 @@ def _persist(proposal: dict[str, Any], base_dir: Path | None = None) -> None:
         with _lock:
             with open(path, "a", encoding="utf-8") as f:
                 import json
+
                 f.write(json.dumps(proposal) + "\n")
     except Exception:
         pass

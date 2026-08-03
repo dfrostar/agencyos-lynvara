@@ -1,4 +1,5 @@
 """NeuralMind Agent OS — Multi-tenant, self-improving product operations."""
+
 from __future__ import annotations
 
 __version__ = "1.16.0"
@@ -96,4 +97,6 @@ __all__ = [
     "AuthContext",
     "SessionStore",
     "extract_bearer_token",
+    "generate_adversarial_query",
+    "get_adversarial_queries",
 ]

@@ -107,7 +107,7 @@ class Tenant:
         if not self.updated_at:
             self.updated_at = self.created_at
         if isinstance(self.rbac, list) and self.rbac and isinstance(self.rbac[0], dict):
-            self.rbac = [RoleAssignment.from_dict(r) for r in self.rbac]
+            self.rbac = [RoleAssignment.from_dict(r) for r in self.rbac]  # type: ignore[arg-type]
 
     def to_dict(self) -> dict[str, Any]:
         return {

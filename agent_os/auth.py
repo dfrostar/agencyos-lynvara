@@ -11,6 +11,7 @@ Design:
     - Body email is NEVER trusted for authenticated operations
     - Bootstrap operations (create_tenant) are the only exception
 """
+
 from __future__ import annotations
 
 import json
@@ -30,6 +31,7 @@ DEFAULT_SESSIONS_DIR = Path(
 @dataclass
 class AuthContext:
     """Authenticated caller identity."""
+
     email: str
     tenant_id: str | None  # None for bootstrap operations
     role: str | None = None
@@ -47,7 +49,9 @@ class SessionStore:
         self._sessions_dir = sessions_dir or DEFAULT_SESSIONS_DIR
         self._lock = threading.Lock()
 
-    def create_session(self, email: str, tenant_id: str | None = None, role: str | None = None) -> str:
+    def create_session(
+        self, email: str, tenant_id: str | None = None, role: str | None = None
+    ) -> str:
         """Create a new session and return the token."""
         token = uuid.uuid4().hex
         session = {
@@ -62,7 +66,9 @@ class SessionStore:
             self._sessions_dir.mkdir(parents=True, exist_ok=True)
             path = self._sessions_dir / f"{token}.json"
             data = json.dumps(session, indent=2)
-            fd, tmp_path = tempfile.mkstemp(dir=self._sessions_dir, prefix=f".{token}-", suffix=".tmp")
+            fd, tmp_path = tempfile.mkstemp(
+                dir=self._sessions_dir, prefix=f".{token}-", suffix=".tmp"
+            )
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     f.write(data)

@@ -298,4 +298,3 @@ class TestAgentOSStore:
             raise err["exc"]
         assert result["val"]["signal_count"] == 1
         store.close()
-

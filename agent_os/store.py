@@ -21,6 +21,7 @@ Usage:
     store.insert_signal("tenant_a", signal.to_dict())
     store.persist_signal_state("tenant_a", metric_name, state_dict)
 """
+
 from __future__ import annotations
 
 import json
@@ -203,9 +204,7 @@ class AgentOSStore:
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
-            self._conn = sqlite3.connect(
-                str(self._db_path), timeout=30, check_same_thread=False
-            )
+            self._conn = sqlite3.connect(str(self._db_path), timeout=30, check_same_thread=False)
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA foreign_keys=ON")
             self._conn.row_factory = sqlite3.Row
@@ -262,29 +261,35 @@ class AgentOSStore:
 
     def get_signals(self, tenant_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            rows = self._get_conn().execute(
-                "SELECT * FROM signals WHERE tenant_id = ? ORDER BY signal_ts",
-                (tenant_id,),
-            ).fetchall()
+            rows = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM signals WHERE tenant_id = ? ORDER BY signal_ts",
+                    (tenant_id,),
+                )
+                .fetchall()
+            )
         return [dict(r) for r in rows]
 
     def get_signals_by_metric(
         self, tenant_id: str, metric_name: str, limit: int = 100
     ) -> list[dict[str, Any]]:
         with self._lock:
-            rows = self._get_conn().execute(
-                """SELECT * FROM signals
+            rows = (
+                self._get_conn()
+                .execute(
+                    """SELECT * FROM signals
                    WHERE tenant_id = ? AND metric_name = ?
                    ORDER BY signal_ts DESC LIMIT ?""",
-                (tenant_id, metric_name, limit),
-            ).fetchall()
+                    (tenant_id, metric_name, limit),
+                )
+                .fetchall()
+            )
         return [dict(r) for r in rows]
 
     # ── signal state (Page-Hinkley persistence) ───────────────────
 
-    def persist_signal_state(
-        self, tenant_id: str, metric_name: str, state: dict[str, Any]
-    ) -> None:
+    def persist_signal_state(self, tenant_id: str, metric_name: str, state: dict[str, Any]) -> None:
         """Save Page-Hinkley state after every push. Crash-safe."""
         with self._tx() as conn:
             conn.execute(
@@ -319,29 +324,33 @@ class AgentOSStore:
 
     def get_signal_state(self, tenant_id: str, metric_name: str) -> dict[str, Any] | None:
         with self._lock:
-            row = self._get_conn().execute(
-                "SELECT * FROM signal_states WHERE tenant_id = ? AND metric_name = ?",
-                (tenant_id, metric_name),
-            ).fetchone()
+            row = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM signal_states WHERE tenant_id = ? AND metric_name = ?",
+                    (tenant_id, metric_name),
+                )
+                .fetchone()
+            )
         if row is None:
             return None
         return dict(row)
 
-    def get_all_signal_states(
-        self, tenant_id: str
-    ) -> dict[str, dict[str, Any]]:
+    def get_all_signal_states(self, tenant_id: str) -> dict[str, dict[str, Any]]:
         with self._lock:
-            rows = self._get_conn().execute(
-                "SELECT * FROM signal_states WHERE tenant_id = ?",
-                (tenant_id,),
-            ).fetchall()
+            rows = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM signal_states WHERE tenant_id = ?",
+                    (tenant_id,),
+                )
+                .fetchall()
+            )
         return {r["metric_name"]: dict(r) for r in rows}
 
     # ── insights ───────────────────────────────────────────────────
 
-    def insert_insight(
-        self, tenant_id: str, insight_dict: dict[str, Any]
-    ) -> None:
+    def insert_insight(self, tenant_id: str, insight_dict: dict[str, Any]) -> None:
         with self._tx() as conn:
             conn.execute(
                 """INSERT INTO insights
@@ -363,10 +372,14 @@ class AgentOSStore:
 
     def get_insights(self, tenant_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            rows = self._get_conn().execute(
-                "SELECT * FROM insights WHERE tenant_id = ? ORDER BY insight_ts",
-                (tenant_id,),
-            ).fetchall()
+            rows = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM insights WHERE tenant_id = ? ORDER BY insight_ts",
+                    (tenant_id,),
+                )
+                .fetchall()
+            )
         return [dict(r) for r in rows]
 
     # ── proposals ──────────────────────────────────────────────────
@@ -523,10 +536,14 @@ class AgentOSStore:
 
     def get_proposal(self, tenant_id: str, proposal_id: str) -> dict[str, Any] | None:
         with self._lock:
-            row = self._get_conn().execute(
-                "SELECT * FROM proposals WHERE tenant_id = ? AND id = ?",
-                (tenant_id, proposal_id),
-            ).fetchone()
+            row = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM proposals WHERE tenant_id = ? AND id = ?",
+                    (tenant_id, proposal_id),
+                )
+                .fetchone()
+            )
         if row is None:
             return None
         d = dict(row)
@@ -572,9 +589,7 @@ class AgentOSStore:
             )
         return current
 
-    def increment_signal_count(
-        self, tenant_id: str, proposal_id: str
-    ) -> dict[str, Any] | None:
+    def increment_signal_count(self, tenant_id: str, proposal_id: str) -> dict[str, Any] | None:
         with self._tx() as conn:
             row = conn.execute(
                 "SELECT signal_count FROM proposals WHERE tenant_id = ? AND id = ?",
@@ -600,9 +615,7 @@ class AgentOSStore:
 
     # ── experiments ────────────────────────────────────────────────
 
-    def insert_experiment(
-        self, tenant_id: str, result_dict: dict[str, Any]
-    ) -> None:
+    def insert_experiment(self, tenant_id: str, result_dict: dict[str, Any]) -> None:
         with self._tx() as conn:
             conn.execute(
                 """INSERT INTO experiments
@@ -630,10 +643,14 @@ class AgentOSStore:
 
     def get_experiments(self, tenant_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            rows = self._get_conn().execute(
-                "SELECT * FROM experiments WHERE tenant_id = ? ORDER BY created_at DESC",
-                (tenant_id,),
-            ).fetchall()
+            rows = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM experiments WHERE tenant_id = ? ORDER BY created_at DESC",
+                    (tenant_id,),
+                )
+                .fetchall()
+            )
         return [dict(r) for r in rows]
 
     def get_experiment_history_for_metric(
@@ -641,19 +658,21 @@ class AgentOSStore:
     ) -> list[dict[str, Any]]:
         """Get historical deltas for a metric (used by p-value calculation)."""
         with self._lock:
-            rows = self._get_conn().execute(
-                """SELECT * FROM experiments
+            rows = (
+                self._get_conn()
+                .execute(
+                    """SELECT * FROM experiments
                    WHERE tenant_id = ? AND metric_name = ?
                    ORDER BY created_at""",
-                (tenant_id, metric_name),
-            ).fetchall()
+                    (tenant_id, metric_name),
+                )
+                .fetchall()
+            )
         return [dict(r) for r in rows]
 
     # ── promotions ─────────────────────────────────────────────────
 
-    def insert_promotion(
-        self, tenant_id: str, record_dict: dict[str, Any]
-    ) -> None:
+    def insert_promotion(self, tenant_id: str, record_dict: dict[str, Any]) -> None:
         with self._tx() as conn:
             conn.execute(
                 """INSERT INTO promotions
@@ -671,10 +690,14 @@ class AgentOSStore:
 
     def get_promotions(self, tenant_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            rows = self._get_conn().execute(
-                "SELECT * FROM promotions WHERE tenant_id = ? ORDER BY created_at DESC",
-                (tenant_id,),
-            ).fetchall()
+            rows = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM promotions WHERE tenant_id = ? ORDER BY created_at DESC",
+                    (tenant_id,),
+                )
+                .fetchall()
+            )
         return [dict(r) for r in rows]
 
     # ── tuner incumbents ───────────────────────────────────────────
@@ -700,23 +723,23 @@ class AgentOSStore:
                 (tenant_id, metric_name, value, tag, json.dumps(history)),
             )
 
-    def get_incumbent(
-        self, tenant_id: str, metric_name: str
-    ) -> dict[str, Any] | None:
+    def get_incumbent(self, tenant_id: str, metric_name: str) -> dict[str, Any] | None:
         with self._lock:
-            row = self._get_conn().execute(
-                "SELECT * FROM tuner_incumbents WHERE tenant_id = ? AND metric_name = ?",
-                (tenant_id, metric_name),
-            ).fetchone()
+            row = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM tuner_incumbents WHERE tenant_id = ? AND metric_name = ?",
+                    (tenant_id, metric_name),
+                )
+                .fetchone()
+            )
         if row is None:
             return None
         return dict(row)
 
     # ── adversarial queries ────────────────────────────────────────
 
-    def insert_adversarial_query(
-        self, tenant_id: str, record: dict[str, Any]
-    ) -> None:
+    def insert_adversarial_query(self, tenant_id: str, record: dict[str, Any]) -> None:
         with self._tx() as conn:
             conn.execute(
                 """INSERT INTO adversarial_queries
@@ -733,14 +756,16 @@ class AgentOSStore:
                 ),
             )
 
-    def get_adversarial_queries(
-        self, tenant_id: str
-    ) -> list[dict[str, Any]]:
+    def get_adversarial_queries(self, tenant_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            rows = self._get_conn().execute(
-                "SELECT * FROM adversarial_queries WHERE tenant_id = ? ORDER BY created_at DESC",
-                (tenant_id,),
-            ).fetchall()
+            rows = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM adversarial_queries WHERE tenant_id = ? ORDER BY created_at DESC",
+                    (tenant_id,),
+                )
+                .fetchall()
+            )
         return [dict(r) for r in rows]
 
     # ── audit log ──────────────────────────────────────────────────
@@ -771,15 +796,21 @@ class AgentOSStore:
                 )
         except Exception as exc:
             # Audit failures must surface, not silently drop
-            log.error("AUDIT FAILURE: actor=%s action=%s target=%s error=%s", actor, action, target, exc)
+            log.error(
+                "AUDIT FAILURE: actor=%s action=%s target=%s error=%s", actor, action, target, exc
+            )
             raise  # fail-closed: audit logging must never silently fail
 
     def get_audit_log(self, tenant_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            rows = self._get_conn().execute(
-                "SELECT * FROM audit_log WHERE tenant_id = ? ORDER BY created_at DESC",
-                (tenant_id,),
-            ).fetchall()
+            rows = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM audit_log WHERE tenant_id = ? ORDER BY created_at DESC",
+                    (tenant_id,),
+                )
+                .fetchall()
+            )
         return [dict(r) for r in rows]
 
     # ── cascade cleanup (D20 fix) ──────────────────────────────────
@@ -788,15 +819,19 @@ class AgentOSStore:
         """Delete all data for a tenant. Returns rows deleted."""
         with self._tx() as conn:
             tables = [
-                "signals", "signal_states", "insights", "proposals",
-                "experiments", "promotions", "tuner_incumbents",
-                "adversarial_queries", "audit_log",
+                "signals",
+                "signal_states",
+                "insights",
+                "proposals",
+                "experiments",
+                "promotions",
+                "tuner_incumbents",
+                "adversarial_queries",
+                "audit_log",
             ]
             total = 0
             for table in tables:
-                cursor = conn.execute(
-                    f"DELETE FROM {table} WHERE tenant_id = ?", (tenant_id,)
-                )
+                cursor = conn.execute(f"DELETE FROM {table} WHERE tenant_id = ?", (tenant_id,))
                 total += cursor.rowcount
         return total
 
@@ -817,6 +852,7 @@ def get_store(db_path: Path | None = None) -> AgentOSStore:
     global _store
     if db_path is None:
         import os
+
         env_path = os.environ.get("NEURALMIND_AGENTOS_DIR")
         if env_path:
             db_path = Path(env_path) / "agent-os.db"

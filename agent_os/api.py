@@ -18,6 +18,7 @@ Design:
     - All routes require authentication (token-guarded, same as daemon).
     - Stdlib-only: matches the daemon's no-dependency approach.
 """
+
 from __future__ import annotations
 
 import logging
@@ -82,7 +83,9 @@ def create_agent_os_routes(
     if session_store is None:
         session_store = SessionStore()
 
-    def _get_auth(body: dict[str, Any] | None, headers: dict[str, str] | None = None) -> AuthContext:
+    def _get_auth(
+        body: dict[str, Any] | None, headers: dict[str, str] | None = None
+    ) -> AuthContext:
         """Extract auth context from Authorization header."""
         if headers:
             token = extract_bearer_token(headers.get("Authorization"))
@@ -225,10 +228,8 @@ def create_agent_os_routes(
         """GET /api/agent-os/signals — List tracked metrics."""
         try:
             auth = _get_auth(body)
-            tenant_id = (body.get("tenant_id") or "").strip()
-            error = _require_permission(
-                governance, auth, tenant_id, Permission.VIEW_SIGNALS
-            )
+            tenant_id = (body.get("tenant_id") or "").strip() if body else ""
+            error = _require_permission(governance, auth, tenant_id, Permission.VIEW_SIGNALS)
             if error:
                 return error
             metrics = signal_detector.list_metrics()
@@ -250,9 +251,7 @@ def create_agent_os_routes(
         try:
             auth = _get_auth(body)
             tenant_id = (body.get("tenant_id") or "").strip()
-            error = _require_permission(
-                governance, auth, tenant_id, Permission.MANAGE_SIGNALS
-            )
+            error = _require_permission(governance, auth, tenant_id, Permission.MANAGE_SIGNALS)
             if error:
                 return error
             metric_name = (body.get("metric_name") or "").strip()
@@ -265,7 +264,7 @@ def create_agent_os_routes(
                 sample = float(value)
             except (TypeError, ValueError):
                 return _error(400, "value must be numeric")
-            project_path = (body.get("project_path") or os.getcwd())
+            project_path = body.get("project_path") or os.getcwd()
             result = signal_detector.push(metric_name, sample, project_path, tenant_id=tenant_id)
             return _json_response(
                 200,
@@ -286,9 +285,7 @@ def create_agent_os_routes(
         try:
             auth = _get_auth(body)
             tenant_id = (body.get("tenant_id") or "").strip()
-            error = _require_permission(
-                governance, auth, tenant_id, Permission.RUN_EXPERIMENTS
-            )
+            error = _require_permission(governance, auth, tenant_id, Permission.RUN_EXPERIMENTS)
             if error:
                 return error
             proposal_id = (body.get("proposal_id") or "").strip()
@@ -331,10 +328,8 @@ def create_agent_os_routes(
         """GET /api/agent-os/experiments — List experiment history."""
         try:
             auth = _get_auth(body)
-            tenant_id = (body.get("tenant_id") or "").strip()
-            error = _require_permission(
-                governance, auth, tenant_id, Permission.VIEW_EXPERIMENTS
-            )
+            tenant_id = (body.get("tenant_id") or "").strip() if body else ""
+            error = _require_permission(governance, auth, tenant_id, Permission.VIEW_EXPERIMENTS)
             if error:
                 return error
             history = experiment_runner.get_history()

@@ -5,11 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from typing import Any
 
 
 def cmd_agent_os(args: argparse.Namespace) -> None:
     """Execute an Agent OS command."""
-    from neuralmind.agent_os import (
+    from agent_os import (
         AgentOSGovernance,
         ExperimentRunner,
         PromotionEngine,
@@ -54,7 +55,7 @@ def cmd_agent_os(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
-def _cmd_tenants(args, registry, governance):
+def _cmd_tenants(args: argparse.Namespace, registry: Any, governance: Any) -> None:
     action = getattr(args, "tenants_action", None)
     if action == "list":
         tenants = registry.list_tenants()
@@ -75,7 +76,7 @@ def _cmd_tenants(args, registry, governance):
         print("Unknown tenants action")
 
 
-def _cmd_rbac(args, registry, governance):
+def _cmd_rbac(args: argparse.Namespace, registry: Any, governance: Any) -> None:
     action = getattr(args, "rbac_action", None)
     if action == "add":
         # Pass positional args: decorator extracts tenant_id=args[1], email=args[2]
@@ -85,7 +86,7 @@ def _cmd_rbac(args, registry, governance):
         print("Unknown rbac action")
 
 
-def _cmd_signals(args, signal_detector, correlator):
+def _cmd_signals(args: argparse.Namespace, signal_detector: Any, correlator: Any) -> None:
     action = getattr(args, "signals_action", None)
     if action == "list":
         metrics = signal_detector.list_metrics()
@@ -98,8 +99,7 @@ def _cmd_signals(args, signal_detector, correlator):
     elif action == "push":
         # Use push() for auto-correlation (was using old .update() API)
         result = signal_detector.push(
-            args.metric, float(args.value),
-            project_path=getattr(args, "project_path", None)
+            args.metric, float(args.value), project_path=getattr(args, "project_path", None)
         )
         output = {
             "signal": result.signal.to_dict() if result.signal else None,
@@ -112,7 +112,9 @@ def _cmd_signals(args, signal_detector, correlator):
         print("Unknown signals action")
 
 
-def _cmd_experiments(args, experiment_runner, promotion_engine):
+def _cmd_experiments(
+    args: argparse.Namespace, experiment_runner: Any, promotion_engine: Any
+) -> None:
     action = getattr(args, "experiments_action", None)
     if action == "run":
         result = promotion_engine.run(
@@ -131,9 +133,9 @@ def _cmd_experiments(args, experiment_runner, promotion_engine):
         print("Unknown experiments action")
 
 
-def _cmd_proposals(args, signal_detector, promotion_engine):
-    from neuralmind.agent_os import PromotionEngine, Proposal, TunerIncumbent
-    from neuralmind.agent_os.proposal_store import (
+def _cmd_proposals(args: argparse.Namespace, signal_detector: Any, promotion_engine: Any) -> None:
+    from agent_os import PromotionEngine, Proposal, TunerIncumbent
+    from agent_os.proposal_store import (
         create_proposal,
         get_proposal,
         history,
@@ -165,7 +167,7 @@ def _cmd_proposals(args, signal_detector, promotion_engine):
         if proposal_dict is None:
             print(f"Proposal {args.id} not found")
             sys.exit(1)
-        proposal = Proposal(
+        proposal_obj = Proposal(
             proposal_id=proposal_dict["proposal_id"],
             title=proposal_dict["title"],
             hypothesis=proposal_dict["hypothesis"],
@@ -177,29 +179,43 @@ def _cmd_proposals(args, signal_detector, promotion_engine):
             status=proposal_dict.get("status", "proposed"),
             signal_count=proposal_dict.get("signal_count", 0),
         )
-        incumbent = TunerIncumbent(proposal.metric_name, proposal.baseline_value, proposal.baseline_tag)
-        engine = PromotionEngine(incumbent=incumbent, proposal=proposal, signal_count=proposal.signal_count)
+        incumbent = TunerIncumbent(
+            proposal_obj.metric_name, proposal_obj.baseline_value, proposal_obj.baseline_tag
+        )
+        engine = PromotionEngine(
+            incumbent=incumbent, proposal=proposal_obj, signal_count=proposal_obj.signal_count
+        )
         result = engine.run()
-        update_proposal(args.id, {
-            "status": proposal.status,
-            "signal_count": proposal.signal_count,
-            "last_experiment_id": result.experiment_id,
-            "last_verdict": result.verdict.value,
-        })
-        print(json.dumps({
-            "proposal_id": args.id,
-            "experiment": result.to_dict(),
-            "proposal_status": proposal.status,
-            "incumbent_value": incumbent.value,
-            "incumbent_tag": incumbent.tag,
-        }, indent=2))
+        update_proposal(
+            args.id,
+            {
+                "status": proposal_obj.status,
+                "signal_count": proposal_obj.signal_count,
+                "last_experiment_id": result.experiment_id,
+                "last_verdict": result.verdict.value,
+            },
+        )
+        print(
+            json.dumps(
+                {
+                    "proposal_id": args.id,
+                    "experiment": result.to_dict(),
+                    "proposal_status": proposal_obj.status,
+                    "incumbent_value": incumbent.value,
+                    "incumbent_tag": incumbent.tag,
+                },
+                indent=2,
+            )
+        )
     else:
         print("Unknown proposals action")
 
 
-def _cmd_health_snapshot(args, registry, signal_detector, promotion_engine):
+def _cmd_health_snapshot(
+    args: argparse.Namespace, registry: Any, signal_detector: Any, promotion_engine: Any
+) -> None:
     """Print a comprehensive health snapshot for the Agent OS."""
-    from neuralmind.agent_os.proposal_store import list_proposals
+    from agent_os.proposal_store import list_proposals
 
     tracked_metrics = signal_detector.list_metrics()
     proposals = list_proposals()
@@ -208,17 +224,19 @@ def _cmd_health_snapshot(args, registry, signal_detector, promotion_engine):
     # Get recent experiments with details
     recent_experiments = []
     for exp in experiments[:5]:
-        recent_experiments.append({
-            "experiment_id": exp.experiment_id,
-            "proposal_id": exp.proposal_id,
-            "metric_name": exp.metric_name,
-            "verdict": exp.verdict.value if hasattr(exp.verdict, 'value') else str(exp.verdict),
-            "delta": round(exp.delta, 6) if exp.delta else None,
-            "p_value": exp.p_value,
-            "ci_lower": exp.ci_lower,
-            "ci_upper": exp.ci_upper,
-            "ts": exp.ended_at,
-        })
+        recent_experiments.append(
+            {
+                "experiment_id": exp.experiment_id,
+                "proposal_id": exp.proposal_id,
+                "metric_name": exp.metric_name,
+                "verdict": exp.verdict.value if hasattr(exp.verdict, "value") else str(exp.verdict),
+                "delta": round(exp.delta, 6) if exp.delta else None,
+                "p_value": exp.p_value,
+                "ci_lower": exp.ci_lower,
+                "ci_upper": exp.ci_upper,
+                "ts": exp.ended_at,
+            }
+        )
 
     snapshot = {
         "tenants": {
@@ -227,7 +245,11 @@ def _cmd_health_snapshot(args, registry, signal_detector, promotion_engine):
         "signals": {
             "tracked_metrics": len(tracked_metrics),
             "metrics": tracked_metrics,
-            "stats": {m: signal_detector.get_stats(m) for m in tracked_metrics if signal_detector.get_stats(m)},
+            "stats": {
+                m: signal_detector.get_stats(m)
+                for m in tracked_metrics
+                if signal_detector.get_stats(m)
+            },
         },
         "proposals": {
             "total": len(proposals),

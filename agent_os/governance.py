@@ -16,6 +16,7 @@ Design:
     - Audit log is fail-closed: errors surface, not silently dropped.
     - Stdlib-only: no external dependencies.
 """
+
 from __future__ import annotations
 
 import enum
@@ -196,8 +197,14 @@ class AgentOSGovernance:
             self._store.audit(tenant_id, actor, action, target, details)
         else:
             # Fallback: at least log it if no store
-            log.info("AUDIT: tenant=%s actor=%s action=%s target=%s details=%s",
-                     tenant_id, actor, action, target, details)
+            log.info(
+                "AUDIT: tenant=%s actor=%s action=%s target=%s details=%s",
+                tenant_id,
+                actor,
+                action,
+                target,
+                details,
+            )
 
     def enforce(
         self,
@@ -214,7 +221,9 @@ class AgentOSGovernance:
             )
         role_str = get_user_role(tenant, email)
         if role_has_permission(role_str, permission):
-            self._audit(tenant_id, email, "permission_granted", tenant_id, {"permission": permission.value})
+            self._audit(
+                tenant_id, email, "permission_granted", tenant_id, {"permission": permission.value}
+            )
             return GovernanceResult(
                 allowed=True,
                 reason=f"Permission {permission.value} granted",

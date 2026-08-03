@@ -17,6 +17,7 @@ Design:
     - Promotion history persisted to SQLite (crash-safe)
     - Incumbent state persisted to SQLite (crash-safe)
 """
+
 from __future__ import annotations
 
 import logging
@@ -113,6 +114,7 @@ class TunerIncumbent:
                 self.value = persisted["value"]
                 self.tag = persisted["tag"]
                 import json
+
                 self._history = json.loads(persisted.get("history", "[]"))
 
     def update(self, new_value: float, new_tag: str, reason: str) -> None:
@@ -120,14 +122,16 @@ class TunerIncumbent:
         old_tag = self.tag
         self.value = new_value
         self.tag = new_tag
-        self._history.append({
-            "from_value": old_value,
-            "from_tag": old_tag,
-            "to_value": new_value,
-            "to_tag": new_tag,
-            "reason": reason,
-            "ts": datetime.now(timezone.utc).isoformat(),
-        })
+        self._history.append(
+            {
+                "from_value": old_value,
+                "from_tag": old_tag,
+                "to_value": new_value,
+                "to_tag": new_tag,
+                "reason": reason,
+                "ts": datetime.now(timezone.utc).isoformat(),
+            }
+        )
         log.info(
             "Tuner incumbent %s: %s (%s) → %s (%s) — %s",
             self.metric_name,
@@ -242,7 +246,9 @@ class PromotionEngine:
             pid = proposal_id or self._proposal.proposal_id
             mname = metric_name or self._proposal.metric_name
             bval = baseline_value if baseline_value is not None else self._proposal.baseline_value
-            cval = candidate_value if candidate_value is not None else self._proposal.candidate_value
+            cval = (
+                candidate_value if candidate_value is not None else self._proposal.candidate_value
+            )
         else:
             pid = proposal_id or f"prop_{uuid.uuid4().hex[:12]}"
             mname = metric_name or "unknown"

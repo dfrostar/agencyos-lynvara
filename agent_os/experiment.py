@@ -9,6 +9,7 @@ Implements the experiment arm of the self-improving loop:
 Uses scipy.stats.t.sf when available (exact t-distribution p-value),
 falls back to normal CDF approximation when scipy is absent.
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,6 +24,7 @@ log = logging.getLogger(__name__)
 
 try:
     from scipy.stats import t as t_dist
+
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False

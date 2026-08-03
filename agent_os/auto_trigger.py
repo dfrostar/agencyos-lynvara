@@ -9,6 +9,7 @@ When a signal fires and an insight is generated:
 Uses the unified SQLite store for all persistence.
 Pattern: fail-open everywhere, audit logging never blocks.
 """
+
 from __future__ import annotations
 
 import logging
@@ -60,6 +61,7 @@ class AutoTriggerLoop:
         store = self._store
         if store is None:
             from .store import get_store
+
             store = get_store()
 
         # Atomic find-or-create (S7: prevents TOCTOU duplicate proposals).
@@ -73,7 +75,14 @@ class AutoTriggerLoop:
             metric_name=signal.metric_name,
             baseline_value=signal.baseline,
             candidate_value=signal.value,
-            tags=["auto-triggered", insight.cause_type.value if hasattr(insight.cause_type, 'value') else str(insight.cause_type)],
+            tags=[
+                "auto-triggered",
+                (
+                    insight.cause_type.value
+                    if hasattr(insight.cause_type, "value")
+                    else str(insight.cause_type)
+                ),
+            ],
             signal_count=1,
         )
 
@@ -116,8 +125,11 @@ class AutoTriggerLoop:
         # Create or reuse incumbent
         if self._incumbent is None or self._incumbent.metric_name != metric_name:
             self._incumbent = TunerIncumbent(
-                metric_name, baseline_value, baseline_tag,
-                store=store, tenant_id=tenant_id,
+                metric_name,
+                baseline_value,
+                baseline_tag,
+                store=store,
+                tenant_id=tenant_id,
             )
             self._engine = PromotionEngine(
                 incumbent=self._incumbent,
@@ -141,9 +153,11 @@ class AutoTriggerLoop:
 
         if self._engine is None:
             self._engine = PromotionEngine(
-                incumbent=self._incumbent, proposal=proposal,
+                incumbent=self._incumbent,
+                proposal=proposal,
                 signal_count=proposal.signal_count,
-                store=store, tenant_id=tenant_id,
+                store=store,
+                tenant_id=tenant_id,
             )
         else:
             self._engine._proposal = proposal
@@ -151,9 +165,7 @@ class AutoTriggerLoop:
             # Rewire ship callable now that we have a proposal — the
             # initial engine was created with proposal=None which installs
             # _noop_ship. With a real proposal the incumbent can be updated.
-            self._engine._ship_callable = _tuner_incumbent_ship_callable(
-                self._incumbent, proposal
-            )
+            self._engine._ship_callable = _tuner_incumbent_ship_callable(self._incumbent, proposal)
             self._engine._auto_promote = True
 
         # Mark proposal as running
@@ -170,10 +182,14 @@ class AutoTriggerLoop:
         # last_verdict / last_experiment_id columns on proposals, so stamping
         # them here would be silently dropped (dead code). Remove that practice.
         if store:
-            store.update_proposal(tenant_id, proposal.proposal_id, {
-                "status": proposal.status,
-                "signal_count": proposal.signal_count,
-            })
+            store.update_proposal(
+                tenant_id,
+                proposal.proposal_id,
+                {
+                    "status": proposal.status,
+                    "signal_count": proposal.signal_count,
+                },
+            )
 
         log.info(
             "Auto-ran experiment for proposal %s: verdict=%s, delta=%.3f, incumbent=%s",
