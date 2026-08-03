@@ -1,0 +1,96 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agencyos"
+version = "1.0.0"
+description = "Multi-tenant, self-improving product operations layer for NeuralMind. Signal → insight → proposal → experiment → promote/rollback loop. Internal operator tooling."
+readme = "README.md"
+license = "Proprietary"
+authors = [
+    { name = "Darren Frost", email = "hello@neuralmind.uk" }
+]
+maintainers = [
+    { name = "Darren Frost", email = "hello@neuralmind.uk" }
+]
+keywords = [
+    "agent-os",
+    "self-improving",
+    "page-hinkley",
+    "anomaly-detection",
+    "experiment-runner",
+    "multi-tenant",
+    "operator-tooling",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.15.1",
+    "black>=26.3.1",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+agencyos = "agent_os.cli:main"
+
+[project.urls]
+Repository = "https://github.com/dfrostar/agencyOS"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent_os"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "agent_os/**/*.py",
+    "tests/**",
+    "README.md",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W", "I", "N", "UP", "B", "C4", "T10", "ISC", "PIE", "RET",
+]
+ignore = [
+    "E501",
+    "B008",
+    "C901",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "F841", "PT011", "PT012"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
