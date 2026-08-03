@@ -33,7 +33,7 @@ jobs:
         run: black --check agent_os tests
 
       - name: Type check with mypy
-        run: mypy agent_os
+        run: python -m mypy agent_os
 
       - name: Test with pytest
         run: pytest tests/ -v --tb=short

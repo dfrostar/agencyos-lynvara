@@ -44,6 +44,8 @@ dev = [
     "pytest-mock>=3.15.1",
     "black>=26.3.1",
     "ruff>=0.1.0",
+    "mypy>=1.10.0",
+    "types-psycopg2>=2.9.21",
 ]
 
 [project.scripts]
@@ -96,5 +98,5 @@ warn_unused_ignores = true
 show_error_codes = true
 
 [[tool.mypy.overrides]]
-module = ["psycopg2.*", "scipy.*"]
+module = ["scipy.*"]
 ignore_missing_imports = true
