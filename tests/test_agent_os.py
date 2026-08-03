@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from neuralmind.agent_os import (
+from agent_os import (
     AgentOSGovernance,
     ExperimentRunner,
     ExperimentStatus,
@@ -15,8 +15,8 @@ from neuralmind.agent_os import (
     TenantRegistry,
     validate_tenant_id,
 )
-from neuralmind.agent_os.governance import check_permission, role_has_permission
-from neuralmind.agent_os.tenant import RoleAssignment
+from agent_os.governance import check_permission, role_has_permission
+from agent_os.tenant import RoleAssignment
 
 # ---------------------------------------------------------------------------
 # Tenant
@@ -103,7 +103,7 @@ class TestTenantIdValidation:
         assert validate_tenant_id("a" * 64) == "a" * 64
 
     def test_invalid_ids(self):
-        from neuralmind.agent_os.tenant import InvalidTenantIdError
+        from agent_os.tenant import InvalidTenantIdError
 
         with pytest.raises(InvalidTenantIdError):
             validate_tenant_id("")

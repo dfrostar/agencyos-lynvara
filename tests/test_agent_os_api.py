@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from neuralmind.agent_os import (
+from agent_os import (
     ExperimentRunner,
     SignalDetector,
     TenantRegistry,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from neuralmind.agent_os import (
+from agent_os import (
     CauseType,
     ExperimentStatus,
     PromotionEngine,
@@ -253,10 +253,10 @@ class TestPromotionRecord:
 
 
 class TestAgentOSStore:
-    """Regression tests for neuralmind/agent_os/store.py.
+    """Regression tests for agent_os/store.py.
 
     Covers the increment_signal_count deadlock (non-reentrant Lock reacquired via
-    get_proposal inside _tx) — the exact path the daemon auto-trigger loop hits.
+    get_proposal inside _tx) - the exact path the daemon auto-trigger loop hits.
     """
 
     def test_increment_signal_count_does_not_deadlock(self, tmp_path):
@@ -269,7 +269,7 @@ class TestAgentOSStore:
         """
         import threading
 
-        from neuralmind.agent_os.store import AgentOSStore
+        from agent_os.store import AgentOSStore
 
         store = AgentOSStore(tmp_path / "agent-os.db")
         prop = store.create_proposal(
