@@ -193,10 +193,12 @@ def migrate_status(dsn: str) -> dict[str, Any]:
                     "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = %s",
                     (table,),
                 )
-                exists = cur.fetchone()[0] > 0
+                row = cur.fetchone()
+                exists = row is not None and row[0] > 0
                 if exists:
                     cur.execute(f"SELECT COUNT(*) FROM {table}")
-                    count = cur.fetchone()[0]
+                    count_row = cur.fetchone()
+                    count = count_row[0] if count_row else 0
                     status[table] = {"exists": True, "rows": count}
                 else:
                     status[table] = {"exists": False, "rows": 0}
