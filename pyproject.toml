@@ -7,7 +7,7 @@ name = "agencyos"
 version = "1.0.0"
 description = "Multi-tenant, self-improving product operations layer for NeuralMind. Signal → insight → proposal → experiment → promote/rollback loop. Internal operator tooling."
 readme = "README.md"
-license = "Proprietary"
+license = { text = "Proprietary" }
 authors = [
     { name = "Darren Frost", email = "hello@neuralmind.uk" }
 ]
