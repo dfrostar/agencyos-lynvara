@@ -18,6 +18,7 @@ from .api import create_agent_os_routes
 from .auth import AuthContext, SessionStore
 from .engagements import create_engagement_routes
 from .experiment import ExperimentRunner
+from .feedback import create_feedback_routes
 from .outreach import create_outreach_routes
 from .signals import SignalDetector
 from .store import AgentOSStore
@@ -29,10 +30,11 @@ DEFAULT_PORT = int(os.environ.get("PORT", 9000))
 
 
 def create_default_store() -> AgentOSStore:
-    """Create AgentOSStore with outreach + engagement tables added."""
+    """Create AgentOSStore with outreach + engagement + feedback tables."""
     store = AgentOSStore()
     _ensure_outreach_tables(store)
     _ensure_engagement_tables(store)
+    _ensure_feedback_tables(store)
     return store
 
 
@@ -117,6 +119,44 @@ def _ensure_engagement_tables(store: AgentOSStore) -> None:
     conn.commit()
 
 
+def _ensure_feedback_tables(store: AgentOSStore) -> None:
+    """Create feedback tables if they don't exist."""
+    conn = store._get_conn()
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS skill_feedback (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            skill_name TEXT NOT NULL,
+            trigger_event TEXT NOT NULL,
+            trigger_context TEXT NOT NULL,
+            original_execution TEXT,
+            user_correction TEXT,
+            suggested_improvement TEXT NOT NULL,
+            git_commit_sha TEXT,
+            status TEXT DEFAULT 'pending',
+            reviewed_by TEXT,
+            applied_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_feedback_tenant ON skill_feedback (tenant_id);
+        CREATE INDEX IF NOT EXISTS idx_feedback_tenant_status ON skill_feedback (tenant_id, status);
+
+        CREATE TABLE IF NOT EXISTS knowledge_entries (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            entry_type TEXT NOT NULL DEFAULT 'feedback',
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            source_feedback_id TEXT,
+            metadata TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_knowledge_tenant ON knowledge_entries (tenant_id);
+    """)
+    conn.commit()
+
+
 def _default_get_auth(body: dict[str, Any] | None) -> AuthContext:
     """Default auth getter — trusts tenant_id from body for development.
     Also accepts GET /path?tenant_id=xxx via query string for convenience.
@@ -142,13 +182,13 @@ class AgentOSHandler(BaseHTTPRequestHandler):
 
     def _read_body(self) -> dict[str, Any] | None:
         content_length = int(self.headers.get("Content-Length", 0))
-        if content_length == 0:
-            return None
-        body = self.rfile.read(content_length)
-        try:
-            return json.loads(body.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            return None
+        if content_length > 0:
+            raw = self.rfile.read(content_length)
+            try:
+                return json.loads(raw.decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                return None
+        return None
 
     def _extract_path_params(self, pattern: str) -> dict[str, str] | None:
         """Extract path params from URL against a pattern.
@@ -193,6 +233,15 @@ class AgentOSHandler(BaseHTTPRequestHandler):
         handler, params = self._find_handler("GET", self.path)
         if handler:
             body = self._read_body()
+            # Parse query string for GET requests
+            if "?" in self.path:
+                from urllib.parse import parse_qs
+                qs = parse_qs(self.path.split("?")[1])
+                if body is None:
+                    body = {}
+                # Flatten single-value lists
+                for k, v in qs.items():
+                    body[k] = v[0] if len(v) == 1 else v
             try:
                 status, response = handler(body, **(params or {}))
                 self._send_response(status, response)
@@ -279,8 +328,14 @@ def create_app(
         get_auth=_default_get_auth,
     )
 
+    # Get feedback routes
+    feedback_routes = create_feedback_routes(
+        store=store,
+        get_auth=_default_get_auth,
+    )
+
     # Merge routes
-    all_routes = {**existing_routes, **outreach_routes, **engagement_routes}
+    all_routes = {**existing_routes, **outreach_routes, **engagement_routes, **feedback_routes}
 
     return all_routes
 
