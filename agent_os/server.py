@@ -230,6 +230,21 @@ class AgentOSHandler(BaseHTTPRequestHandler):
         return None, None
 
     def do_GET(self) -> None:
+        # Intercept webhook stats path
+        if self.path.startswith("/api/agent-os/webhooks/stats"):
+            auth_header = self.headers.get("Authorization", "").replace("Bearer ", "")
+            session = self.server.session_store.get_session(auth_header) if hasattr(self.server, 'session_store') else None
+            if not session and hasattr(self.server, 'session_store'):
+                self._send_response(401, {"error": "unauthorized"})
+                return
+            tenant_id = session.tenant_id if session else "dev-tenant"
+            if hasattr(self.server, 'store'):
+                stats = self.server.store.get_webhook_stats(tenant_id)
+                self._send_response(200, stats)
+            else:
+                self._send_response(200, {"total": 0, "processed": 0, "failed": 0, "last_event_at": None})
+            return
+        # Fall through to existing GET handler
         handler, params = self._find_handler("GET", self.path)
         if handler:
             body = self._read_body()
@@ -239,7 +254,6 @@ class AgentOSHandler(BaseHTTPRequestHandler):
                 qs = parse_qs(self.path.split("?")[1])
                 if body is None:
                     body = {}
-                # Flatten single-value lists
                 for k, v in qs.items():
                     body[k] = v[0] if len(v) == 1 else v
             try:
@@ -252,6 +266,32 @@ class AgentOSHandler(BaseHTTPRequestHandler):
             self._send_response(404, {"error": "Not found", "path": self.path})
 
     def do_POST(self) -> None:
+        # Intercept webhook ingestion paths
+        webhook_match = re.match(
+            r"^/api/agent-os/webhooks/(?P<source>github|stripe|custom)$",
+            self.path.split("?")[0],
+        )
+        if webhook_match:
+            source = webhook_match.group("source")
+            content_length = int(self.headers.get("Content-Length", 0))
+            raw_body = self.rfile.read(content_length)
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                self._send_response(400, {"error": "invalid JSON"})
+                return
+            if hasattr(self.server, 'webhook_ingester'):
+                status, response = self.server.webhook_ingester.ingest(
+                    source=source,
+                    payload=payload,
+                    headers=dict(self.headers),
+                    raw_body=raw_body,
+                )
+                self._send_response(status, response)
+            else:
+                self._send_response(503, {"error": "webhook ingestion not enabled"})
+            return
+        # Fall through to existing POST handler
         handler, params = self._find_handler("POST", self.path)
         if handler:
             body = self._read_body()
@@ -336,8 +376,56 @@ def create_app(
 
     # Merge routes
     all_routes = {**existing_routes, **outreach_routes, **engagement_routes, **feedback_routes}
-
+    
+    # Add webhook config routes
+    all_routes.update(_create_webhook_config_routes(store))
+    
     return all_routes
+
+
+def _create_webhook_config_routes(store: AgentOSStore) -> dict[tuple[str, str], Callable]:
+    """Create webhook configuration routes."""
+    routes: dict[tuple[str, str], Callable] = {}
+    
+    def list_configs(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+        tenant_id = body.get("tenant_id", "dev-tenant") if body else "dev-tenant"
+        configs = store.list_webhook_configs(tenant_id)
+        return 200, {"configs": configs, "count": len(configs)}
+    
+    def create_config(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+        if not body:
+            return 400, {"error": "body required"}
+        tenant_id = body.get("tenant_id", "dev-tenant")
+        source = body.get("source")
+        secret = body.get("secret")
+        if not source or not secret:
+            return 400, {"error": "source and secret required"}
+        config_id = store.create_webhook_config(
+            tenant_id=tenant_id,
+            source=source,
+            secret=secret,
+            enabled_events=body.get("enabled_events"),
+            project_mapping=body.get("project_mapping"),
+        )
+        return 201, {"config_id": config_id, "tenant_id": tenant_id, "source": source}
+    
+    def delete_config(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+        if not body:
+            return 400, {"error": "body required"}
+        tenant_id = body.get("tenant_id", "dev-tenant")
+        source = body.get("source")
+        if not source:
+            return 400, {"error": "source required"}
+        deleted = store.delete_webhook_config(tenant_id, source)
+        if deleted:
+            return 200, {"status": "deleted"}
+        return 404, {"error": "config not found"}
+    
+    routes[("GET", "/api/agent-os/webhooks/configs")] = list_configs
+    routes[("POST", "/api/agent-os/webhooks/configs")] = create_config
+    routes[("DELETE", "/api/agent-os/webhooks/configs")] = delete_config
+    
+    return routes
 
 
 def main() -> None:
@@ -354,6 +442,12 @@ def main() -> None:
     
     port = DEFAULT_PORT
     server = HTTPServer(("0.0.0.0", port), AgentOSHandler)
+    
+    # Inject webhook ingester and store into server for access in handler
+    from .webhooks import WebhookIngester
+    server.webhook_ingester = WebhookIngester(store)
+    server.store = store
+    server.session_store = session_store
     
     log.info("Agent OS server starting on port %d", port)
     log.info("Routes registered: %d", len(routes))

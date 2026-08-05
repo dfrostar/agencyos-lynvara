@@ -172,6 +172,39 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_log (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log (created_at);
 
+CREATE TABLE IF NOT EXISTS webhook_configs (
+    config_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    source TEXT NOT NULL CHECK(source IN ('github', 'stripe', 'custom')),
+    secret TEXT NOT NULL,
+    enabled_events TEXT,
+    project_mapping TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id),
+    UNIQUE(tenant_id, source)
+);
+
+CREATE TABLE IF NOT EXISTS webhook_events (
+    event_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    source TEXT NOT NULL CHECK(source IN ('github', 'stripe', 'custom')),
+    event_type TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    normalized_signal_id TEXT,
+    received_at TEXT NOT NULL DEFAULT (datetime('now')),
+    processed_at TEXT,
+    status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'processing', 'processed', 'failed')),
+    error_message TEXT,
+    FOREIGN KEY (normalized_signal_id) REFERENCES signals(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_events_tenant ON webhook_events (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_status ON webhook_events (status, received_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_source ON webhook_events (source, event_type);
+CREATE INDEX IF NOT EXISTS idx_webhook_configs_tenant ON webhook_configs (tenant_id);
+
 CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER NOT NULL
 );
@@ -801,7 +834,178 @@ class AgentOSStore:
             )
             raise  # fail-closed: audit logging must never silently fail
 
-    def get_audit_log(self, tenant_id: str) -> list[dict[str, Any]]:
+    # ── webhooks ────────────────────────────────────────────────────
+
+    def insert_webhook_event(
+        self,
+        event_id: str,
+        tenant_id: str,
+        source: str,
+        event_type: str,
+        payload: str,
+    ) -> None:
+        with self._tx() as conn:
+            conn.execute(
+                """INSERT INTO webhook_events
+                   (event_id, tenant_id, source, event_type, payload)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (event_id, tenant_id, source, event_type, payload),
+            )
+
+    def webhook_event_exists(self, event_id: str) -> bool:
+        with self._lock:
+            row = self._get_conn().execute(
+                "SELECT 1 FROM webhook_events WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+        return row is not None
+
+    def get_pending_webhook_events(self, limit: int = 10) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = (
+                self._get_conn()
+                .execute(
+                    """SELECT * FROM webhook_events
+                       WHERE status = 'pending'
+                       ORDER BY received_at ASC
+                       LIMIT ?""",
+                    (limit,),
+                )
+                .fetchall()
+            )
+        return [dict(r) for r in rows]
+
+    def mark_webhook_processing(self, event_id: str) -> None:
+        with self._tx() as conn:
+            conn.execute(
+                "UPDATE webhook_events SET status = 'processing' WHERE event_id = ?",
+                (event_id,),
+            )
+
+    def mark_webhook_processed(
+        self,
+        event_id: str,
+        signal_id: str | None,
+        status: str = "processed",
+    ) -> None:
+        with self._tx() as conn:
+            conn.execute(
+                """UPDATE webhook_events
+                   SET status = ?, normalized_signal_id = ?, processed_at = datetime('now')
+                   WHERE event_id = ?""",
+                (status, signal_id, event_id),
+            )
+
+    def mark_webhook_failed(self, event_id: str, error_message: str) -> None:
+        with self._tx() as conn:
+            conn.execute(
+                """UPDATE webhook_events
+                   SET status = 'failed', error_message = ?, processed_at = datetime('now')
+                   WHERE event_id = ?""",
+                (error_message, event_id),
+            )
+
+    def get_webhook_stats(self, tenant_id: str, hours: int = 24) -> dict[str, Any]:
+        with self._lock:
+            row = (
+                self._get_conn()
+                .execute(
+                    """SELECT
+                         COUNT(*) as total,
+                         SUM(CASE WHEN status = 'processed' THEN 1 ELSE 0 END) as processed,
+                         SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+                         MAX(received_at) as last_event_at
+                       FROM webhook_events
+                       WHERE tenant_id = ?
+                       AND received_at >= datetime('now', ?)""",
+                    (tenant_id, f"-{hours} hours"),
+                )
+                .fetchone()
+            )
+        if row is None:
+            return {"total": 0, "processed": 0, "failed": 0, "last_event_at": None}
+        return dict(row)
+
+    def create_webhook_config(
+        self,
+        tenant_id: str,
+        source: str,
+        secret: str,
+        enabled_events: list[str] | None = None,
+        project_mapping: dict[str, str] | None = None,
+    ) -> str:
+        config_id = f"whcfg_{uuid.uuid4().hex[:12]}"
+        with self._tx() as conn:
+            conn.execute(
+                """INSERT INTO webhook_configs
+                   (config_id, tenant_id, source, secret, enabled_events, project_mapping)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    config_id,
+                    tenant_id,
+                    source,
+                    secret,
+                    json.dumps(enabled_events or []),
+                    json.dumps(project_mapping or {}),
+                ),
+            )
+        return config_id
+
+    def get_webhook_config(self, tenant_id: str, source: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM webhook_configs WHERE tenant_id = ? AND source = ? AND is_active = 1",
+                    (tenant_id, source),
+                )
+                .fetchone()
+            )
+        if row is None:
+            return None
+        d = dict(row)
+        d["enabled_events"] = json.loads(d.get("enabled_events", "[]"))
+        d["project_mapping"] = json.loads(d.get("project_mapping", "{}"))
+        return d
+
+    def list_webhook_configs(self, tenant_id: str) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM webhook_configs WHERE tenant_id = ?",
+                    (tenant_id,),
+                )
+                .fetchall()
+            )
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["enabled_events"] = json.loads(d.get("enabled_events", "[]"))
+            d["project_mapping"] = json.loads(d.get("project_mapping", "{}"))
+            result.append(d)
+        return result
+
+    def delete_webhook_config(self, tenant_id: str, source: str) -> bool:
+        with self._tx() as conn:
+            cur = conn.execute(
+                "DELETE FROM webhook_configs WHERE tenant_id = ? AND source = ?",
+                (tenant_id, source),
+            )
+            return cur.rowcount > 0
+
+    def resolve_project_to_tenant(self, project_ref: str) -> str | None:
+        with self._lock:
+            rows = self._get_conn().execute(
+                "SELECT tenant_id, project_mapping FROM webhook_configs WHERE is_active = 1"
+            ).fetchall()
+        for row in rows:
+            mapping = json.loads(row["project_mapping"] or "{}")
+            if project_ref in mapping:
+                return mapping[project_ref]
+        return None
+
+    def get_audit_log(self, tenant_id: str, limit: int = 100) -> list[dict[str, Any]]:
         with self._lock:
             rows = (
                 self._get_conn()
