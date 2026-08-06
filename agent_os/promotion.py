@@ -152,7 +152,12 @@ class TunerIncumbent:
 
 
 def _tuner_incumbent_ship_callable(incumbent: TunerIncumbent, proposal: Proposal) -> ShipCallable:
-    """Create a ship_callable that updates the tuner incumbent."""
+    """Create a ship_callable that updates the tuner incumbent.
+
+    On PROMOTED: incumbent adopts candidate_value (deployed change becomes new best).
+    On ROLLED_BACK: no-op — the candidate was never deployed, so the
+    incumbent's existing value is still correct.
+    """
 
     def ship(result: ExperimentResult) -> None:
         if result.verdict == ExperimentStatus.PROMOTED:
@@ -162,10 +167,13 @@ def _tuner_incumbent_ship_callable(incumbent: TunerIncumbent, proposal: Proposal
                 reason=f"Promoted {result.experiment_id} (delta={result.delta:.3f})",
             )
         elif result.verdict == ExperimentStatus.ROLLED_BACK:
-            incumbent.update(
-                new_value=proposal.baseline_value,
-                new_tag=proposal.baseline_tag,
-                reason=f"Rolled back {result.experiment_id} (delta={result.delta:.3f})",
+            # No-op: the candidate was rejected but never deployed.
+            # The incumbent's current value remains correct.
+            log.info(
+                "Rolled back %s: candidate rejected, incumbent unchanged (value=%s, tag=%s)",
+                result.experiment_id,
+                incumbent.value,
+                incumbent.tag,
             )
 
     return ship

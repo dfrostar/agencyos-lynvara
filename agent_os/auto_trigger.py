@@ -42,11 +42,13 @@ class AutoTriggerLoop:
         store: Any = None,
         tenant_id: str = "default",
         incumbent: TunerIncumbent | None = None,
+        higher_is_better: bool | None = None,
     ) -> None:
         self._detector = signal_detector
         self._store = store
         self._tenant_id = tenant_id
         self._incumbent = incumbent
+        self._higher_is_better = higher_is_better
         self._engine: PromotionEngine | None = None
         if incumbent is not None:
             self._engine = PromotionEngine(incumbent=incumbent, store=store, tenant_id=tenant_id)
@@ -113,14 +115,26 @@ class AutoTriggerLoop:
     def _auto_run_experiment(self, proposal_dict: dict[str, Any]) -> None:
         """Run an experiment for a proposal if conditions are met."""
         store = self._store
-        # Use the proposal's owning tenant (threaded through the signal),
-        # falling back to the loop's configured tenant for CLI/direct paths.
         tenant_id = proposal_dict.get("tenant_id") or self._tenant_id
         metric_name = proposal_dict.get("metric_name", "unknown")
         baseline_value = proposal_dict.get("baseline_value", 0.0)
         candidate_value = proposal_dict.get("candidate_value", 0.0)
         baseline_tag = proposal_dict.get("baseline_tag", "baseline")
         candidate_tag = proposal_dict.get("candidate_tag", "candidate")
+
+        # Create Proposal object for the engine
+        proposal = Proposal(
+            proposal_id=proposal_dict["proposal_id"],
+            title=proposal_dict.get("title", ""),
+            hypothesis=proposal_dict.get("hypothesis", ""),
+            baseline_tag=baseline_tag,
+            candidate_tag=candidate_tag,
+            metric_name=metric_name,
+            baseline_value=baseline_value,
+            candidate_value=candidate_value,
+            status="running",
+            signal_count=proposal_dict.get("signal_count", 0),
+        )
 
         # Create or reuse incumbent
         if self._incumbent is None or self._incumbent.metric_name != metric_name:
@@ -137,50 +151,22 @@ class AutoTriggerLoop:
                 tenant_id=tenant_id,
             )
 
-        # Create Proposal object for PromotionEngine
-        proposal = Proposal(
-            proposal_id=proposal_dict["proposal_id"],
-            title=proposal_dict.get("title", ""),
-            hypothesis=proposal_dict.get("hypothesis", ""),
-            baseline_tag=baseline_tag,
-            candidate_tag=candidate_tag,
-            metric_name=metric_name,
-            baseline_value=baseline_value,
-            candidate_value=candidate_value,
-            status="running",
-            signal_count=proposal_dict.get("signal_count", 0),
-        )
-
-        if self._engine is None:
-            self._engine = PromotionEngine(
-                incumbent=self._incumbent,
-                proposal=proposal,
-                signal_count=proposal.signal_count,
-                store=store,
-                tenant_id=tenant_id,
-            )
-        else:
-            self._engine._proposal = proposal
-            self._engine._signal_count = proposal.signal_count
-            # Rewire ship callable now that we have a proposal — the
-            # initial engine was created with proposal=None which installs
-            # _noop_ship. With a real proposal the incumbent can be updated.
-            self._engine._ship_callable = _tuner_incumbent_ship_callable(self._incumbent, proposal)
-            self._engine._auto_promote = True
+        # Rewire engine with the proposal so the ship callable can update
+        # the incumbent. The initial engine was created with proposal=None
+        # which installs _noop_ship. With a real proposal we can update.
+        self._engine._proposal = proposal
+        self._engine._signal_count = proposal.signal_count
+        self._engine._ship_callable = _tuner_incumbent_ship_callable(self._incumbent, proposal)
+        self._engine._auto_promote = True
 
         # Mark proposal as running
         if store:
             store.update_proposal(tenant_id, proposal.proposal_id, {"status": "running"})
 
         # Run the experiment
-        # Auto-triggered proposals assume higher is better (improvement).
-        # The candidate value is expected to be >= the baseline.
-        result = self._engine.run(higher_is_better=True)
+        higher_is_better = self._higher_is_better if self._higher_is_better is not None else True
+        result = self._engine.run(higher_is_better=higher_is_better)
 
-        # Update proposal status/count. Note: experiment verdicts and CI are
-        # persisted by the engine to the `experiments` table — there are no
-        # last_verdict / last_experiment_id columns on proposals, so stamping
-        # them here would be silently dropped (dead code). Remove that practice.
         if store:
             store.update_proposal(
                 tenant_id,
