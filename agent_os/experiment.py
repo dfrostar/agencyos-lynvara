@@ -3,10 +3,12 @@
 Implements the experiment arm of the self-improving loop:
 - Proposed change → baseline/candidate tags
 - Run metric collection → measure delta
-- p-value-governed promote/rollback decision with confidence intervals
+- Two-sided t-test against null hypothesis of zero change (using historical
+  deltas for variance estimation). Verdict driven by delta thresholds,
+  with p-value reported for observability.
 - Results persisted to SQLite store (crash-safe, per-tenant)
 
-Uses scipy.stats.t.sf when available (exact t-distribution p-value),
+Uses scipy.stats.t.sf when available (t-distribution CDF),
 falls back to normal CDF approximation when scipy is absent.
 """
 
@@ -187,7 +189,18 @@ class ExperimentRunner:
         return result
 
     def _compute_p_value(self, current_delta: float) -> float | None:
-        """Compute p-value for the current delta against historical deltas."""
+        """Compute p-value: is current_delta significantly different from 0?
+
+        Uses historical deltas to estimate population variance, then performs
+        a two-sided t-test against the null hypothesis of zero change.
+
+        Previous implementation compared against mean(historical) with standard
+        error — this is incorrect because:
+        1. The mean of historical deltas is not a meaningful null hypothesis
+           (it conflates promotions + rollbacks).
+        2. Standard error of the mean is for testing sample means, not individual
+           observations.
+        """
         # Use in-memory history if available, else load from store
         historical = [r.delta for r in self._history if r.delta is not None]
         if len(historical) < 2:
@@ -198,14 +211,13 @@ class ExperimentRunner:
             return None
 
         n = len(historical)
-        mean_h = sum(historical) / n
-        var_h = sum((d - mean_h) ** 2 for d in historical) / max(n - 1, 1)
+        var_h = sum((d - 0.0) ** 2 for d in historical) / max(n - 1, 1)
 
         if var_h < 1e-12:
-            return 0.0 if abs(current_delta - mean_h) < 1e-9 else 100.0
+            return 0.0 if abs(current_delta) < 1e-9 else 1.0
 
-        se = (var_h / n) ** 0.5
-        t_stat = (current_delta - mean_h) / se if se > 1e-12 else 0.0
+        std_h = var_h ** 0.5  # population std estimate, NOT standard error
+        t_stat = current_delta / std_h if std_h > 1e-12 else 0.0
         df = n - 1
         p = 2.0 * _t_sf(abs(t_stat), df)
         return min(max(p, 0.0), 1.0)
