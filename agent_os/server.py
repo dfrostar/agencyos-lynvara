@@ -158,17 +158,13 @@ def _ensure_feedback_tables(store: AgentOSStore) -> None:
 
 
 def _default_get_auth(body: dict[str, Any] | None) -> AuthContext:
-    """Default auth getter — trusts tenant_id from body for development.
-    Also accepts GET /path?tenant_id=xxx via query string for convenience.
+    """Default auth getter — requires bearer <REDACTED>, does NOT trust body tenant_id.
+    
+    CRITICAL C2 FIX: Previously trusted body['tenant_id'] for development.
+    Now returns unauthenticated context — handlers must enforce auth.
     """
-    tenant_id = None
-    if body and body.get("tenant_id"):
-        tenant_id = body["tenant_id"]
-    # For GET requests, tenant_id must come from query string
-    # The handler passes query params via body for simplicity
-    if tenant_id:
-        return AuthContext(email="api-client", tenant_id=tenant_id)
-    return AuthContext(email="dev@local", tenant_id="dev-tenant")
+    # NOTE: For API-key-based auth (automated systems), add X-API-Key header check here.
+    return AuthContext(email="", tenant_id=None)
 
 
 class AgentOSHandler(BaseHTTPRequestHandler):
@@ -257,7 +253,7 @@ class AgentOSHandler(BaseHTTPRequestHandler):
                 for k, v in qs.items():
                     body[k] = v[0] if len(v) == 1 else v
             try:
-                status, response = handler(body, **(params or {}))
+                status, response = handler(body, headers=dict(self.headers), **(params or {}))
                 self._send_response(status, response)
             except Exception as e:
                 log.exception("Error handling GET %s", self.path)
@@ -296,7 +292,7 @@ class AgentOSHandler(BaseHTTPRequestHandler):
         if handler:
             body = self._read_body()
             try:
-                status, response = handler(body, **(params or {}))
+                status, response = handler(body, headers=dict(self.headers), **(params or {}))
                 self._send_response(status, response)
             except Exception as e:
                 log.exception("Error handling POST %s", self.path)
@@ -309,7 +305,7 @@ class AgentOSHandler(BaseHTTPRequestHandler):
         if handler:
             body = self._read_body()
             try:
-                status, response = handler(body, **(params or {}))
+                status, response = handler(body, headers=dict(self.headers), **(params or {}))
                 self._send_response(status, response)
             except Exception as e:
                 log.exception("Error handling PATCH %s", self.path)
@@ -322,7 +318,7 @@ class AgentOSHandler(BaseHTTPRequestHandler):
         if handler:
             body = self._read_body()
             try:
-                status, response = handler(body, **(params or {}))
+                status, response = handler(body, headers=dict(self.headers), **(params or {}))
                 self._send_response(status, response)
             except Exception as e:
                 log.exception("Error handling DELETE %s", self.path)

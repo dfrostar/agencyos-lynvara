@@ -57,11 +57,22 @@ def create_outreach_routes(
     """Create outreach route handlers.
     Returns a dict of {(method, path): handler}.
     """
+    
+    def _resolve_auth(body, headers):
+        """Resolve auth from headers first, then fall back to get_auth."""
+        if headers:
+            from .auth import extract_bearer_token, SessionStore
+            token = extract_bearer_token(headers.get("Authorization"))
+            if token:
+                session = SessionStore().get_session(token)
+                if session:
+                    return session
+        return get_auth(body)
 
-    def list_leads(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+    def list_leads(body: dict[str, Any] | None, headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """GET /api/agent-os/outreach/leads — list all leads for tenant."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -82,10 +93,10 @@ def create_outreach_routes(
             log.exception("Failed to list outreach leads")
             return _error(500, str(e))
 
-    def get_stats(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+    def get_stats(body: dict[str, Any] | None, headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """GET /api/agent-os/outreach/stats — pipeline counts per stage."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -107,10 +118,10 @@ def create_outreach_routes(
             log.exception("Failed to get outreach stats")
             return _error(500, str(e))
 
-    def create_lead(body: dict[str, Any], **path_params: str) -> tuple[int, dict[str, Any]]:
+    def create_lead(body: dict[str, Any], headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """POST /api/agent-os/outreach/leads — create a lead."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -169,10 +180,10 @@ def create_outreach_routes(
             log.exception("Failed to create outreach lead")
             return _error(500, str(e))
 
-    def get_lead(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+    def get_lead(body: dict[str, Any] | None, headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """GET /api/agent-os/outreach/leads/{id} — get single lead with activities."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -209,10 +220,10 @@ def create_outreach_routes(
             log.exception("Failed to get outreach lead")
             return _error(500, str(e))
 
-    def update_lead(body: dict[str, Any], **path_params: str) -> tuple[int, dict[str, Any]]:
+    def update_lead(body: dict[str, Any], headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """PATCH /api/agent-os/outreach/leads/{id} — update a lead."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -284,10 +295,10 @@ def create_outreach_routes(
             log.exception("Failed to update outreach lead")
             return _error(500, str(e))
 
-    def delete_lead(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+    def delete_lead(body: dict[str, Any] | None, headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """DELETE /api/agent-os/outreach/leads/{id} — remove a lead."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -317,10 +328,10 @@ def create_outreach_routes(
             log.exception("Failed to delete outreach lead")
             return _error(500, str(e))
 
-    def list_activities(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+    def list_activities(body: dict[str, Any] | None, headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """GET /api/agent-os/outreach/leads/{id}/activities — list activities for a lead."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -354,10 +365,10 @@ def create_outreach_routes(
             log.exception("Failed to list activities")
             return _error(500, str(e))
 
-    def create_activity(body: dict[str, Any], **path_params: str) -> tuple[int, dict[str, Any]]:
+    def create_activity(body: dict[str, Any], headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """POST /api/agent-os/outreach/leads/{id}/activities — log an activity."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 

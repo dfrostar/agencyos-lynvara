@@ -51,6 +51,17 @@ def create_feedback_routes(
     get_auth: Callable[[dict[str, Any] | None], AuthContext],
 ) -> dict[tuple[str, str], Callable]:
     """Create feedback route handlers."""
+    
+    def _resolve_auth(body, headers):
+        """Resolve auth from headers first, then fall back to get_auth."""
+        if headers:
+            from .auth import extract_bearer_token, SessionStore
+            token = extract_bearer_token(headers.get("Authorization"))
+            if token:
+                session = SessionStore().get_session(token)
+                if session:
+                    return session
+        return get_auth(body)
 
     # ── helpers ──────────────────────────────────────────────────
 
@@ -99,10 +110,10 @@ def create_feedback_routes(
 
     # ── list ────────────────────────────────────────────────────
 
-    def list_feedback(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+    def list_feedback(body: dict[str, Any] | None, headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """GET /api/agent-os/feedback — list feedback for tenant."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -167,10 +178,10 @@ def create_feedback_routes(
 
     # ── create ──────────────────────────────────────────────────
 
-    def create_feedback(body: dict[str, Any], **path_params: str) -> tuple[int, dict[str, Any]]:
+    def create_feedback(body: dict[str, Any], headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """POST /api/agent-os/feedback — create a feedback entry."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -239,10 +250,10 @@ def create_feedback_routes(
 
     # ── get one ─────────────────────────────────────────────────
 
-    def get_feedback(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+    def get_feedback(body: dict[str, Any] | None, headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """GET /api/agent-os/feedback/{id} — get single feedback entry."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -271,10 +282,10 @@ def create_feedback_routes(
 
     # ── update status (closed-loop) ─────────────────────────────
 
-    def update_status(body: dict[str, Any], **path_params: str) -> tuple[int, dict[str, Any]]:
+    def update_status(body: dict[str, Any], headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """PATCH /api/agent-os/feedback/{id}/status — update feedback status."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -340,10 +351,10 @@ def create_feedback_routes(
 
     # ── stats ───────────────────────────────────────────────────
 
-    def get_stats(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+    def get_stats(body: dict[str, Any] | None, headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """GET /api/agent-os/feedback/stats — counts by status."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -367,10 +378,10 @@ def create_feedback_routes(
 
     # ── digest ──────────────────────────────────────────────────
 
-    def get_digest(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+    def get_digest(body: dict[str, Any] | None, headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """GET /api/agent-os/feedback/digest — weekly digest."""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -431,10 +442,10 @@ def create_feedback_routes(
 
     # ── capture: user-correction ────────────────────────────────
 
-    def capture_user_correction(body: dict[str, Any], **path_params: str) -> tuple[int, dict[str, Any]]:
+    def capture_user_correction(body: dict[str, Any], headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """POST /api/agent-os/feedback/capture/user-correction"""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -485,10 +496,10 @@ def create_feedback_routes(
 
     # ── capture: test-failure ───────────────────────────────────
 
-    def capture_test_failure(body: dict[str, Any], **path_params: str) -> tuple[int, dict[str, Any]]:
+    def capture_test_failure(body: dict[str, Any], headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """POST /api/agent-os/feedback/capture/test-failure"""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
@@ -537,10 +548,10 @@ def create_feedback_routes(
 
     # ── capture: qa-finding ─────────────────────────────────────
 
-    def capture_qa_finding(body: dict[str, Any], **path_params: str) -> tuple[int, dict[str, Any]]:
+    def capture_qa_finding(body: dict[str, Any], headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """POST /api/agent-os/feedback/capture/qa-finding"""
         try:
-            auth = get_auth(body)
+            auth = _resolve_auth(body, headers)
             if not auth.is_authenticated:
                 return _error(401, "authentication required")
 
