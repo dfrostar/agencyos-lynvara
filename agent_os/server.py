@@ -30,6 +30,14 @@ DEFAULT_PORT = int(os.environ.get("PORT", 9000))
 MAX_BODY_SIZE = 1_048_576  # 1 MiB max request body (H1 fix)
 
 
+class _BodyRejected(Exception):
+    """Raised when _read_body rejects a request (oversized, chunked, etc)."""
+    def __init__(self, status: int, message: str):
+        self.status = status
+        self.message = message
+        super().__init__(message)
+
+
 def create_default_store() -> AgentOSStore:
     """Create AgentOSStore with outreach + engagement + feedback tables."""
     store = AgentOSStore()
@@ -179,14 +187,16 @@ class AgentOSHandler(BaseHTTPRequestHandler):
 
     def _read_body(self) -> dict[str, Any] | None:
         # H2 fix: reject Transfer-Encoding: chunked (no chunked parser)
-        if self.headers.get("Transfer-Encoding", "").lower() == "chunked":
-            self._send_response(400, {"error": "chunked Transfer-Encoding not supported"})
-            return None
+        # Also reject multi-value encodings containing chunked (e.g. "gzip, chunked")
+        te = self.headers.get("Transfer-Encoding", "").lower()
+        if "chunked" in te:
+            self._drain_body()
+            raise _BodyRejected(400, "chunked Transfer-Encoding not supported")
         # H1 fix: enforce max body size
         content_length = int(self.headers.get("Content-Length", 0))
         if content_length > MAX_BODY_SIZE:
-            self._send_response(413, {"error": f"body exceeds {MAX_BODY_SIZE} byte limit"})
-            return None
+            self._drain_body()
+            raise _BodyRejected(413, f"body exceeds {MAX_BODY_SIZE} byte limit")
         if content_length > 0:
             raw = self.rfile.read(content_length)
             try:
@@ -194,6 +204,12 @@ class AgentOSHandler(BaseHTTPRequestHandler):
             except (json.JSONDecodeError, UnicodeDecodeError):
                 return None
         return None
+
+    def _drain_body(self) -> None:
+        """Consume remaining request body so the socket is clean for response."""
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length > 0:
+            self.rfile.read(content_length)
 
     def _extract_path_params(self, pattern: str) -> dict[str, str] | None:
         """Extract path params from URL against a pattern.
@@ -252,7 +268,11 @@ class AgentOSHandler(BaseHTTPRequestHandler):
         # Fall through to existing GET handler
         handler, params = self._find_handler("GET", self.path)
         if handler:
-            body = self._read_body()
+            try:
+                body = self._read_body()
+            except _BodyRejected as e:
+                self._send_response(e.status, {"error": e.message})
+                return
             # Parse query string for GET requests
             if "?" in self.path:
                 from urllib.parse import parse_qs
@@ -277,8 +297,19 @@ class AgentOSHandler(BaseHTTPRequestHandler):
             self.path.split("?")[0],
         )
         if webhook_match:
+            # H2: reject chunked on webhook paths too
+            te = self.headers.get("Transfer-Encoding", "").lower()
+            if "chunked" in te:
+                self._drain_body()
+                self._send_response(400, {"error": "chunked Transfer-Encoding not supported"})
+                return
             source = webhook_match.group("source")
             content_length = int(self.headers.get("Content-Length", 0))
+            # H1: enforce max body size on webhook paths
+            if content_length > MAX_BODY_SIZE:
+                self._drain_body()
+                self._send_response(413, {"error": f"body exceeds {MAX_BODY_SIZE} byte limit"})
+                return
             raw_body = self.rfile.read(content_length)
             try:
                 payload = json.loads(raw_body.decode("utf-8"))
@@ -299,7 +330,11 @@ class AgentOSHandler(BaseHTTPRequestHandler):
         # Fall through to existing POST handler
         handler, params = self._find_handler("POST", self.path)
         if handler:
-            body = self._read_body()
+            try:
+                body = self._read_body()
+            except _BodyRejected as e:
+                self._send_response(e.status, {"error": e.message})
+                return
             try:
                 status, response = handler(body, headers=dict(self.headers), **(params or {}))
                 self._send_response(status, response)
@@ -312,7 +347,11 @@ class AgentOSHandler(BaseHTTPRequestHandler):
     def do_PATCH(self) -> None:
         handler, params = self._find_handler("PATCH", self.path)
         if handler:
-            body = self._read_body()
+            try:
+                body = self._read_body()
+            except _BodyRejected as e:
+                self._send_response(e.status, {"error": e.message})
+                return
             try:
                 status, response = handler(body, headers=dict(self.headers), **(params or {}))
                 self._send_response(status, response)
@@ -325,7 +364,11 @@ class AgentOSHandler(BaseHTTPRequestHandler):
     def do_DELETE(self) -> None:
         handler, params = self._find_handler("DELETE", self.path)
         if handler:
-            body = self._read_body()
+            try:
+                body = self._read_body()
+            except _BodyRejected as e:
+                self._send_response(e.status, {"error": e.message})
+                return
             try:
                 status, response = handler(body, headers=dict(self.headers), **(params or {}))
                 self._send_response(status, response)

@@ -1008,11 +1008,14 @@ class AgentOSStore:
         return None
 
     def get_audit_log(self, tenant_id: str, limit: int = 100) -> list[dict[str, Any]]:
+        # M2 fix: validate limit — must be int, coerce negatives to "all rows" (SQLite LIMIT -1)
+        if not isinstance(limit, int) or limit < 0:
+            limit = -1  # SQLite: -1 means unlimited
         with self._lock:
             rows = (
                 self._get_conn()
                 .execute(
-                    "SELECT * FROM audit_log WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ?",
+                    "SELECT * FROM audit_log WHERE tenant_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?",
                     (tenant_id, limit),
                 )
                 .fetchall()
