@@ -1,85 +1,87 @@
-# AgencyOS — Framework Progression Kanban
+# AgencyOS — Kanban
 
-**Repo:** /home/dtfrost5/agencyOS/
-**Date:** 2026-08-06
-**Scope:** Close Levels 5/7/8 gaps in the 10-Level Maturity Framework
-**Docs:** `agencyOS/docs/` (ARCHITECTURE.md, BRD.md, PRD.md, TRD.md)
-**Honest assessment:** `docs/HONEST-COMPLETION-ASSESSMENT-2026-08-06.md`
+**Last updated:** 2026-08-06
+**Plan:** `docs/BUSINESS-PLAN-2026-08-06.md`
+**Stream:** B — Business Operations
+**Owner:** Hermes (engineering), Darren (strategy/decisions)
 
 ---
 
-## Current Maturity
+## Current State
 
 ```
-Level 10: Autonomous Business Layer          ❌ Out of scope
-Level 9:  Self-Improving Systems             ✅ (engine only — tuner values)
-Level 8:  Orchestrated Departments           ❌ NOT DONE
-Level 7:  Specialised Agent Teams            ❌ NOT DONE
-Level 6:  Closed-Loop Workflows              ✅ (core — unit tested, NOT run on real data)
-Level 5:  Trigger-Based Workflows            ✅ DONE (webhooks committed 2026-08-05)
-Level 4:  Tool-Connected                     ✅
-Level 3:  Claude Code                        ⚠️ Via Hermes
-Level 2:  Co-Work                            ✅
-Level 1:  Chat                               ✅
+Tests:     110 passing (all green)
+Server:    ❌ NOT RUNNING
+Level 6:   ✅ DONE (closed-loop engine)
+Level 9:   ❌ NOT BUILT (target)
+Level 10:  🔮 TBD (deferred, in scope)
 ```
 
 ---
 
-## 🏗️ ACTIVE: Pragmatic Completion Path (Option B — 20 hours)
+## Sprint 1: Core Operations (11.5h)
 
-**Goal:** Get AgencyOS running on REAL business data. Prove closed-loop value before building Level 7-8.
+| ID | Task | Level | Status | Est. | Verification |
+|----|------|-------|--------|------|--------------|
+| B-01 | Start server, health endpoint | — | 🔴 TODO | 0.5h | `curl localhost:9000/health` returns 200 |
+| B-02 | Knowledge base module | 4 | 🔴 TODO | 4h | CRUD + semantic search for decisions, SOPs, research |
+| B-03 | Financial tracking | 4 | 🔴 TODO | 3h | Revenue, costs, invoicing per client/engagement |
+| B-04 | Business health dashboard | 4 | 🔴 TODO | 4h | Leads, revenue, engagement status visible |
 
-| ID | Task | Est. | Status | Verification |
-|----|------|------|--------|--------------|
-| B-01 | Wire webhook worker into server | 3h | 🔴 TODO | Server starts with `ENABLE_WEBHOOKS=true` |
-| B-02 | Start server + connect to cmmc20 proxy | 2h | 🔴 TODO | `curl localhost:9000/health` returns 200 |
-| B-03 | Run real outreach data through loop | 5h | 🔴 TODO | Outreach lead → signal → experiment → promotion chain executes |
-| B-04 | Verify closed-loop on REAL data | 5h | 🔴 TODO | Experiment makes good decision on real lead |
-| B-05 | Dashboard showing actual signals | 5h | 🔴 TODO | Real-time signals + experiments visible |
-
-**Success metric:** AgencyOS processes real outreach data and makes a good automated decision WITHOUT human intervention.
+**Outcome:** Daily-use business tool tracking pipeline, knowledge, finances
 
 ---
 
-## 🔮 FUTURE: Level 7-8 (Deferred — 39 hours)
+## Sprint 2: Signals + Automation (10h)
 
-**Only pursue if Option B proves closed-loop value on real data.**
+| ID | Task | Level | Status | Est. | Verification |
+|----|------|-------|--------|------|--------------|
+| B-05 | Wire webhook worker to server | 5 | 🔴 TODO | 2h | Webhook creates signal automatically |
+| B-06 | Connect signal sources | 5 | 🔴 TODO | 3h | Competitor, regulatory, market signals flow in |
+| B-07 | Feedback → knowledge loop | 6 | 🔴 TODO | 2h | Client feedback auto-creates knowledge entry |
+| B-08 | Weekly business review | 6 | 🔴 TODO | 3h | Auto-summarize pipeline, revenue, signals |
 
-### Phase 2: Level 7 Start (Roles Foundation) — 15 hours
-
-| ID | Task | Est. | Status | Verification |
-|----|------|------|--------|--------------|
-| A-07 | Message bus (SQLite-backed pub/sub) | 3h | 🔴 TODO | Unit tests pass (pub, sub, ack, dead letter) |
-| A-08 | Role base class | 2h | 🔴 TODO | Abstract methods enforced |
-| A-09 | Detector role wrapper | 1h | 🔴 TODO | Consumes metric_value, produces signal |
-| A-10 | Correlator role wrapper | 1h | 🔴 TODO | Consumes signal, produces insight |
-| A-11 | Evolver role | 4h | 🔴 TODO | Identifies high-FP rules, stale rules |
-| A-12 | Coordinator | 3h | 🔴 TODO | Starts roles, restarts on crash |
-| A-13 | Human approval workflow | 1h | 🔴 TODO | Proposal review API |
-
-### Phase 3: Level 8 (Department Orchestration) — 12 hours
-
-| ID | Task | Est. | Status | Verification |
-|----|------|------|--------|--------------|
-| A-14 | Outreach department loop | 4h | 🔴 TODO | 3 sub-loops (scoring, templates, timing) |
-| A-15 | Engagement health loop | 2h | 🔴 TODO | Velocity + stagnation queries |
-| A-16 | Department config API | 1h | 🔴 TODO | Tenant-controlled activation |
-| — | Wire departments into coordinator | 1h | 🔴 TODO | Evaluation runs on schedule |
-| — | Department tests | 4h | 🔴 TODO | 15+ tests pass |
+**Outcome:** Automated business reviews + market awareness
 
 ---
 
-## Kill Criteria
+## Sprint 3: Level 9 + L10 Design (12h)
 
-**Re-evaluate AgencyOS track after pragmatic path. Kill if:**
-- Real-data closed-loop makes bad decisions (worse than human)
-- cmmc20 has no paying customers to feed real data
-- Maintenance > 20% of total engineering time
-- Level 7-8 features never get used by actual tenants
+| ID | Task | Level | Status | Est. | Verification |
+|----|------|-------|--------|------|--------------|
+| B-09 | Self-improving engine (full) | 9 | 🔴 TODO | 6h | System learns from outcomes, modifies behavior |
+| B-10 | Weekly self-improvement report | 9 | 🔴 TODO | 2h | Report shows delta week-over-week |
+| B-11 | Level 10 architecture design | 10 | 🔴 TODO | 4h | Architecture doc with L10 section (deferred scope) |
+
+**Outcome:** System learns from outcomes + L10 documented based on L6-9 learnings
 
 ---
 
-## Completed (Verified)
+## Sprint 4: Level 7-8 (Future, After L9 Proven)
+
+| ID | Task | Level | Status | Est. | Verification |
+|----|------|-------|--------|------|--------------|
+| B-12 | Message bus | 7 | DEFERRED | — | — |
+| B-13 | Role base class | 7 | DEFERRED | — | — |
+| B-14 | Detector role | 7 | DEFERRED | — | — |
+| B-15 | Correlator role | 7 | DEFERRED | — | — |
+| B-16 | Coordinator | 7 | DEFERRED | — | — |
+| B-17 | Outreach department | 8 | DEFERRED | — | — |
+| B-18 | Engagement department | 8 | DEFERRED | — | — |
+
+---
+
+## Blocked
+
+| ID | Task | Blocked On |
+|----|------|------------|
+| B1 | Server not running | Sprint 1 |
+| B2 | Real data | Sprint 1 (wire to cmmc20 leads) |
+| B3 | Level 10 scope | Deferred to Sprint 3 |
+
+---
+
+## Completed
 
 | ID | Task | Commit | Evidence |
 |----|------|--------|----------|
@@ -90,49 +92,10 @@ Level 1:  Chat                               ✅
 | A-05 | Webhook config + tenant resolution | `6d13361` | `store.py` extension |
 | A-06 | Webhook background worker | `6d13361` | Coded, not server-wired |
 | D1 | Feedback loop extraction | `3ab1440` | `feedback.py` + 12 tests |
-| D2 | Framework docs (ARCH/BRD/PRD/TRD) | `30a7d21` | 5 docs, ~100KB total |
-| D3 | Kanban (cmmc20) | `d7a1cd0` | Synced with AgencyOS progress |
-| D4 | 110 tests passing | — | All green |
-
----
-
-## Deferred (No Immediate Need)
-
-| Item | Status | Why |
-|------|--------|-----|
-| Knowledge base extraction | DEFERRED | No immediate tenant need |
-| Billing integration | DEFERRED | No paying tenants |
-| WebSocket/gRPC | DEFERRED | HTTP sufficient for now |
-| Multi-region sync | DEFERRED | Single-node sufficient |
-
----
-
-## Blocked
-
-| ID | Task | Blocked On |
-|----|------|------------|
-| B1 | Server not running | Code exists, not started |
-| B2 | cmmc20 proxy wiring | AgencyOS proxy in cmmc20 needs testing |
-| B3 | Real data | cmmc20 needs paying customers |
-
----
-
-## Key Files
-
-| File | Purpose | Phase |
-|------|---------|-------|
-| `agent_os/webhooks.py` | Webhook ingestion + worker | 1 (code complete, not wired) |
-| `agent_os/sources/github.py` | GitHub normalizer | 1 |
-| `agent_os/sources/stripe.py` | Stripe normalizer | 1 |
-| `agent_os/sources/custom.py` | Custom normalizer | 1 |
-| `agent_os/bus.py` | Message bus | 2 (not started) |
-| `agent_os/roles/base.py` | Role abstract class | 2 (not started) |
-| `agent_os/roles/detector.py` | Detector role | 2 (not started) |
-| `agent_os/roles/correlator.py` | Correlator role | 2 (not started) |
-| `agent_os/coordinator.py` | Role lifecycle manager | 2 (not started) |
-| `agent_os/roles/evolver.py` | Evolver role | 3 (not started) |
-| `agent_os/departments/outreach.py` | Outreach orchestrator | 3 (not started) |
-| `agent_os/departments/engagements.py` | Engagement orchestrator | 3 (not started) |
+| D2 | Framework docs (ARCH/BRD/PRD/TRD) | `30a7d21` | 5 docs |
+| D3 | Outreach extraction | `74521f2` | `outreach.py` + 12 tests |
+| D4 | Engagement extraction | `74521f2` | `engagements.py` + 8 tests |
+| D5 | 110 tests passing | — | All green |
 
 ---
 
@@ -142,18 +105,13 @@ Level 1:  Chat                               ✅
 # Run all tests
 cd /home/dtfrost5/agencyOS && python -m pytest tests/ -q --tb=short
 
-# Start server with webhook worker
-ENABLE_WEBHOOKS=true python -m agent_os.server
+# Start server
+cd /home/dtfrost5/agencyOS && python -m agent_os.server
 
-# Test webhook endpoint
-curl -X POST http://localhost:9000/api/agent-os/webhooks/custom \
-  -H "Content-Type: application/json" \
-  -d '{"event_id":"test-1","tenant_id":"test","metric_name":"test.metric","value":1.0}'
-
-# Check role health
-curl http://localhost:9000/api/agent-os/roles
+# Test health
+curl http://localhost:9000/health
 ```
 
 ---
 
-*Kanban for AgencyOS framework progression. Revised 2026-08-06 after honest completion assessment. 5-task pragmatic path (20h) takes priority over 16-task full framework (54h).*
+*Kanban for AgencyOS. Stream B of Level2Logic Cybersecurity Platform. Target: Level 9 (Level 10 TBD).*
