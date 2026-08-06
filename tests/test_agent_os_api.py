@@ -14,6 +14,7 @@ from agent_os import (
     TenantRegistry,
     create_agent_os_routes,
 )
+from agent_os.auth import SessionStore
 
 
 @pytest.fixture
@@ -24,23 +25,61 @@ def tmp_tenants(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def routes(tmp_tenants):
+def session_store():
+    return SessionStore()
+
+
+@pytest.fixture
+def routes(tmp_tenants, session_store):
     registry, _ = tmp_tenants
     signal_detector = SignalDetector()
     experiment_runner = ExperimentRunner()
-    return create_agent_os_routes(registry, signal_detector, experiment_runner)
+    routes_dict = create_agent_os_routes(registry, signal_detector, experiment_runner, session_store=session_store)
+    return _TestBundle(routes_dict, session_store)
 
 
-def _post(routes, path, body, **params):
+class _TestBundle:
+    """Bundle routes dict with session_store for auto-auth in tests."""
+    def __init__(self, routes, session_store):
+        self.routes = routes
+        self.session_store = session_store
+    
+    def get(self, key, default=None):
+        return self.routes.get(key, default)
+    
+    def __getitem__(self, key):
+        handler = self.routes[key]
+        def _wrapped(body=None, headers=None, **params):
+            body, headers = _auto_auth(body, headers, self.session_store)
+            return handler(body, headers=headers, **params)
+        return _wrapped
+
+
+def _post(routes, path, body, headers=None, **params):
     handler = routes.get(("POST", path))
     assert handler is not None
-    return handler(body, **params)
+    body, headers = _auto_auth(body, headers, routes.session_store)
+    return handler(body, headers=headers, **params)
 
 
-def _get(routes, path, body=None, **params):
+def _get(routes, path, body=None, headers=None, **params):
     handler = routes.get(("GET", path))
     assert handler is not None
-    return handler(body, **params)
+    body, headers = _auto_auth(body, headers, routes.session_store)
+    return handler(body, headers=headers, **params)
+
+
+def _auto_auth(body, headers, session_store):
+    """Auto-authenticate: if body has email but no token, create session and return headers."""
+    if headers and "Authorization" in headers:
+        return body, headers
+    if body and body.get("email") and session_store:
+        email = body["email"]
+        tenant_id = body.get("tenant_id") or "test-tenant"
+        token = session_store.create_session(email, tenant_id, "admin")
+        new_headers = {"Authorization": f"Bearer {token}"}
+        return body, new_headers
+    return body, headers
 
 
 class TestCreateTenant:
