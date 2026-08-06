@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS signal_states (
     lambda_threshold REAL NOT NULL DEFAULT 4.0,
     last_signal_at REAL NOT NULL DEFAULT 0.0,
     cooldown_seconds REAL NOT NULL DEFAULT 60.0,
+    reference_mean REAL NOT NULL DEFAULT 0.0,
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (tenant_id, metric_name)
 );
@@ -329,8 +330,8 @@ class AgentOSStore:
                 """INSERT INTO signal_states
                    (tenant_id, metric_name, count, running_sum, m2,
                     min_cum_dev, max_cum_dev, lambda_threshold,
-                    last_signal_at, cooldown_seconds, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    last_signal_at, cooldown_seconds, reference_mean, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                    ON CONFLICT(tenant_id, metric_name) DO UPDATE SET
                    count = excluded.count,
                    running_sum = excluded.running_sum,
@@ -340,6 +341,7 @@ class AgentOSStore:
                    lambda_threshold = excluded.lambda_threshold,
                    last_signal_at = excluded.last_signal_at,
                    cooldown_seconds = excluded.cooldown_seconds,
+                   reference_mean = excluded.reference_mean,
                    updated_at = excluded.updated_at""",
                 (
                     tenant_id,
@@ -352,6 +354,7 @@ class AgentOSStore:
                     state["lambda_threshold"],
                     state["last_signal_at"],
                     state["cooldown_seconds"],
+                    state.get("reference_mean", 0.0),
                 ),
             )
 

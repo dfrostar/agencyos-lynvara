@@ -4,9 +4,11 @@ Detects small persistent shifts in metrics without fixed thresholds.
 Emits Signal records when anomalies are detected.
 
 Design:
-    - Page-Hinkley test: tracks cumulative sum of deviations from
-      running mean. When cumulative deviation exceeds a threshold
-      (lambda) times the standard deviation, a signal fires.
+    - Page-Hinkley test: tracks cumulative sum of deviations from a FIXED
+      reference mean (set after initial burn-in period of MIN_SAMPLES_BEFORE_ALERT
+      samples). The reference mean is reset after each signal fires.
+    - When cumulative deviation exceeds a threshold (lambda) times the
+      standard deviation, a signal fires.
     - Lambda scales with data volatility — fixed thresholds miss
       small persistent shifts and fire on seasonal variance.
     - Signals have severity based on deviation magnitude.
@@ -22,6 +24,7 @@ import logging
 import math
 import threading
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -97,6 +100,7 @@ class _PageHinkleyState:
     lambda_threshold: float = 4.0
     last_signal_at: float = 0.0
     cooldown_seconds: float = 60.0
+    _reference_mean: float = 0.0
 
     @property
     def running_mean(self) -> float:
@@ -129,15 +133,39 @@ class _PageHinkleyState:
         return self.cumulative_deviation / std
 
     def update(self, value: float) -> Signal | None:
-        """Update state with a new metric value."""
+        """Update state with a new metric value.
+
+        Page-Hinkley tracks cumulative deviation from a FIXED reference
+        mean (set after MIN_SAMPLES_BEFORE_ALERT), not a running mean.
+        Using a running mean would cause the detector to track the data
+        and never accumulate enough deviation to fire.
+        """
         self.count += 1
+
+        # Welford's online algorithm for mean/variance using PRE-update mean
         delta = value - self.running_mean
         self.running_sum += value
         delta2 = value - self.running_mean
         self.m2 += delta * delta2
 
-        mean = self.running_mean
-        deviation = value - mean
+        # Reference mean: frozen after initial burn-in period.
+        # Capture it on the last burn-in sample so it represents the
+        # pre-shift baseline, not a value already influenced by the shift.
+        if self.count == MIN_SAMPLES_BEFORE_ALERT:
+            self._reference_mean = self.running_mean
+            self.max_cum_dev = 0.0
+            self.min_cum_dev = 0.0
+            return None
+
+        if self.count < MIN_SAMPLES_BEFORE_ALERT:
+            # Still accumulating burn-in samples
+            self.max_cum_dev = 0.0
+            self.min_cum_dev = 0.0
+            return None
+
+        # If reference mean still 0.0 (e.g., all values were 0), use running_mean
+        reference = self._reference_mean if self._reference_mean != 0.0 else self.running_mean
+        deviation = value - reference
         self.max_cum_dev = max(self.max_cum_dev + deviation, 0.0)
         self.min_cum_dev = min(self.min_cum_dev + deviation, 0.0)
 
@@ -155,23 +183,26 @@ class _PageHinkleyState:
             self.last_signal_at = now
             level = self._severity_level()
             signal = Signal(
-                signal_id=f"sig_{self.metric_name}_{int(now)}",
+                signal_id=f"sig_{self.metric_name}_{int(now * 1000)}_{uuid.uuid4().hex[:6]}",
                 timestamp=now,
                 metric_name=self.metric_name,
                 value=value,
-                baseline=mean,
+                baseline=self._reference_mean,
                 delta=deviation,
                 severity=severity,
                 level=level,
             )
             self.max_cum_dev = 0.0
             self.min_cum_dev = 0.0
+            # Reset reference mean after signal so next window starts fresh
+            self._reference_mean = self.running_mean
             return signal
 
         return None
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "metric_name": self.metric_name,
             "count": self.count,
             "running_sum": self.running_sum,
             "m2": self.m2,
@@ -180,6 +211,7 @@ class _PageHinkleyState:
             "lambda_threshold": self.lambda_threshold,
             "last_signal_at": self.last_signal_at,
             "cooldown_seconds": self.cooldown_seconds,
+            "reference_mean": self._reference_mean,
         }
 
     @classmethod
@@ -194,6 +226,7 @@ class _PageHinkleyState:
             lambda_threshold=data.get("lambda_threshold", 4.0),
             last_signal_at=data.get("last_signal_at", 0.0),
             cooldown_seconds=data.get("cooldown_seconds", 60.0),
+            _reference_mean=data.get("reference_mean", 0.0),
         )
 
 
@@ -232,10 +265,13 @@ class SignalDetector:
         self._store = store
         self._tenant_id = tenant_id
         self._lock = threading.RLock()
+        self._last_persist_ts: dict[str, float] = {}
 
         # Load persisted state from store
         if store is not None:
             self._load_state()
+
+    PERSIST_DEBOUNCE_SECONDS: float = 1.0
 
     def _load_state(self) -> None:
         """Load persisted signal states from store."""
@@ -254,10 +290,21 @@ class SignalDetector:
             )
         return self._state[metric_name]
 
-    def _persist_state(self, metric_name: str) -> None:
-        """Persist a metric's Page-Hinkley state to the store."""
+    def _persist_state(self, metric_name: str, force: bool = False) -> None:
+        """Persist a metric's Page-Hinkley state to the store.
+
+        When force=False (default), only persists if the last persistence
+        was more than PERSIST_DEBOUNCE_SECONDS ago. This avoids SQLite
+        write amplification on high-frequency metric streams.
+        """
         if self._store is None:
             return
+        now = time.time()
+        if not force:
+            last = self._last_persist_ts.get(metric_name, 0.0)
+            if now - last < self.PERSIST_DEBOUNCE_SECONDS:
+                return
+        self._last_persist_ts[metric_name] = now
         state = self._state.get(metric_name)
         if state is not None:
             self._store.persist_signal_state(self._tenant_id, metric_name, state.to_dict())
@@ -267,8 +314,8 @@ class SignalDetector:
         with self._lock:
             state = self._get_state(metric_name)
             signal = state.update(float(value))
-            # Persist state after every update (crash-safe)
-            self._persist_state(metric_name)
+            # Persist state (debounced — see _persist_state)
+            self._persist_state(metric_name, force=signal is not None)
             return signal
 
     def push(
