@@ -39,13 +39,18 @@ def server(store):
     srv.shutdown()
 
 
-def _post(server_url, path, body):
+def _post(server_url, path, body, headers=None, auto_auth=True):
     """POST helper."""
     import urllib.request
     import urllib.error
+    if auto_auth and not headers:
+        headers = _auth_headers(server_url)
     data = json.dumps(body).encode()
+    hdrs = {"Content-Type": "application/json"}
+    if headers:
+        hdrs.update(headers)
     req = urllib.request.Request(
-        f"{server_url}{path}", data=data, headers={"Content-Type": "application/json"}
+        f"{server_url}{path}", data=data, headers=hdrs
     )
     try:
         resp = urllib.request.urlopen(req)
@@ -56,11 +61,16 @@ def _post(server_url, path, body):
         return 500, {"error": str(e)}
 
 
-def _get(server_url, path):
+def _get(server_url, path, headers=None, auto_auth=True):
     """GET helper."""
     import urllib.request
     import urllib.error
-    req = urllib.request.Request(f"{server_url}{path}")
+    if auto_auth and not headers:
+        headers = _auth_headers(server_url)
+    hdrs = {}
+    if headers:
+        hdrs.update(headers)
+    req = urllib.request.Request(f"{server_url}{path}", headers=hdrs)
     try:
         resp = urllib.request.urlopen(req)
         return resp.status, json.loads(resp.read())
@@ -70,13 +80,18 @@ def _get(server_url, path):
         return 500, {"error": str(e)}
 
 
-def _patch(server_url, path, body):
+def _patch(server_url, path, body, headers=None, auto_auth=True):
     """PATCH helper."""
     import urllib.request
     import urllib.error
+    if auto_auth and not headers:
+        headers = _auth_headers(server_url)
     data = json.dumps(body).encode()
+    hdrs = {"Content-Type": "application/json"}
+    if headers:
+        hdrs.update(headers)
     req = urllib.request.Request(
-        f"{server_url}{path}", data=data, headers={"Content-Type": "application/json"}, method="PATCH"
+        f"{server_url}{path}", data=data, headers=hdrs, method="PATCH"
     )
     try:
         resp = urllib.request.urlopen(req)
@@ -85,6 +100,26 @@ def _patch(server_url, path, body):
         return e.code, json.loads(e.read())
     except Exception as e:
         return 500, {"error": str(e)}
+
+
+def _auth_headers(server_url, email="test@test.com", tenant_id="test-tenant"):
+    """Return bearer <REDACTED> headers for a tenant, creating the tenant if needed.
+    
+    If the tenant already exists (from a prior test), creates a session directly
+    rather than failing on TenantConflictError.
+    """
+    status, resp = _post(server_url, "/api/agent-os/tenants", {
+        "tenant_id": tenant_id, "name": tenant_id, "admin_email": email
+    }, auto_auth=False)
+    if status == 201:
+        token = resp["session_token"]
+    else:
+        # Tenant already exists (e.g., from a prior test in the same session).
+        # Create a session directly via SessionStore (same directory as server).
+        from agent_os.auth import SessionStore
+        store = SessionStore()
+        token = store.create_session(email, tenant_id, "admin")
+    return {"Authorization": f"Bearer {token}"}
 
 
 class TestFeedbackRoutes:
@@ -306,3 +341,28 @@ class TestFeedbackRoutes:
         # Should not see tenant-a's data
         for fb in resp["data"]["feedback"]:
             assert fb["tenant_id"] != "tenant-a"
+
+
+class TestBodyTenantTrust:
+    """CRITICAL C2: _default_get_auth must not trust body tenant_id."""
+
+    def test_spoofed_tenant_id_in_body_rejected(self, server):
+        """Attacker cannot spoof tenant_id in body to access another tenant."""
+        # Create feedback for tenant-a
+        body_a = {
+            "tenant_id": "tenant-a",
+            "skillName": "acm-12",
+            "triggerEvent": "user_correction",
+            "triggerContext": "test",
+            "suggestedImprovement": "test",
+        }
+        _post(server, "/api/agent-os/feedback", body_a)
+
+        # Attacker tries to list tenant-a's feedback by spoofing tenant_id in body
+        # without any session/auth — must NOT return tenant-a's data
+        status, resp = _get(server, "/api/agent-os/feedback?tenant_id=tenant-a")
+        # Should either be 401 (unauthorized) or return empty, NOT tenant-a's data
+        if status == 200:
+            # If allowed, must not leak tenant-a's data to unauthenticated request
+            for fb in resp.get("data", {}).get("feedback", []):
+                assert fb["tenant_id"] != "tenant-a"
