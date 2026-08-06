@@ -183,7 +183,6 @@ CREATE TABLE IF NOT EXISTS webhook_configs (
     is_active INTEGER DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id),
     UNIQUE(tenant_id, source)
 );
 
@@ -1013,8 +1012,8 @@ class AgentOSStore:
             rows = (
                 self._get_conn()
                 .execute(
-                    "SELECT * FROM audit_log WHERE tenant_id = ? ORDER BY created_at DESC",
-                    (tenant_id,),
+                    "SELECT * FROM audit_log WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (tenant_id, limit),
                 )
                 .fetchall()
             )

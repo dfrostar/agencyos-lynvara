@@ -27,6 +27,7 @@ from .tenant import TenantRegistry
 log = logging.getLogger(__name__)
 
 DEFAULT_PORT = int(os.environ.get("PORT", 9000))
+MAX_BODY_SIZE = 1_048_576  # 1 MiB max request body (H1 fix)
 
 
 def create_default_store() -> AgentOSStore:
@@ -177,7 +178,15 @@ class AgentOSHandler(BaseHTTPRequestHandler):
         log.info("%s - %s", self.address_string(), format % args)
 
     def _read_body(self) -> dict[str, Any] | None:
+        # H2 fix: reject Transfer-Encoding: chunked (no chunked parser)
+        if self.headers.get("Transfer-Encoding", "").lower() == "chunked":
+            self._send_response(400, {"error": "chunked Transfer-Encoding not supported"})
+            return None
+        # H1 fix: enforce max body size
         content_length = int(self.headers.get("Content-Length", 0))
+        if content_length > MAX_BODY_SIZE:
+            self._send_response(413, {"error": f"body exceeds {MAX_BODY_SIZE} byte limit"})
+            return None
         if content_length > 0:
             raw = self.rfile.read(content_length)
             try:

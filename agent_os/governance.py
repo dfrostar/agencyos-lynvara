@@ -120,18 +120,26 @@ def check_permission(tenant: Tenant, email: str, permission: Permission) -> bool
 
 
 def require_permission(permission: Permission) -> Callable[[F], F]:
-    """Decorator that enforces a permission on a method."""
+    """Decorator that enforces a permission on a method.
+
+    Extracts tenant_id and email from kwargs or positional args (kwargs preferred).
+    """
 
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            if len(args) < 3:
+            # M1 fix: prefer kwargs for reliability
+            tenant_id = kwargs.get("tenant_id")
+            email = kwargs.get("email")
+            if tenant_id is None and len(args) > 1:
+                tenant_id = args[1]
+            if email is None and len(args) > 2:
+                email = args[2]
+            if tenant_id is None or email is None:
                 raise InsufficientPermissionError(
                     f"Cannot enforce permission {permission.value}: "
-                    "need at least (self, tenant_id, email)"
+                    "need tenant_id and email as kwargs or positional args[1], args[2]"
                 )
-            tenant_id = args[1]
-            email = args[2]
             self_obj = args[0]
             registry = getattr(self_obj, "_tenant_registry", None)
             if registry is None:
