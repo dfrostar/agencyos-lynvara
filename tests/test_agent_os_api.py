@@ -363,8 +363,10 @@ class TestGetSignals:
         assert status == 200
 
     def test_missing_tenant_id(self, routes):
-        status, payload = _get(routes, "/api/agent-os/signals", {"email": "alice"})
-        assert status == 400
+        # Old behavior: missing tenant_id in body → 400
+        # New design: tenant_id comes from session; unauthenticated → 401
+        status, payload = _get(routes, "/api/agent-os/signals", {})
+        assert status == 401
 
 
 class TestPushSignal:

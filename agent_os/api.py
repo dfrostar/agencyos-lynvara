@@ -225,7 +225,9 @@ def create_agent_os_routes(
         """GET /api/agent-os/signals — List tracked metrics."""
         try:
             auth = _get_auth(body, headers)
-            tenant_id = (body.get("tenant_id") or "").strip() if body else ""
+            if not auth.is_authenticated:
+                return _error(401, "authentication required")
+            tenant_id = (auth.tenant_id or "").strip()
             error = _require_permission(governance, auth, tenant_id, Permission.VIEW_SIGNALS)
             if error:
                 return error
@@ -247,7 +249,9 @@ def create_agent_os_routes(
         """POST /api/agent-os/signals — Push a metric value."""
         try:
             auth = _get_auth(body, headers)
-            tenant_id = (body.get("tenant_id") or "").strip()
+            if not auth.is_authenticated:
+                return _error(401, "authentication required")
+            tenant_id = (auth.tenant_id or "").strip()
             error = _require_permission(governance, auth, tenant_id, Permission.MANAGE_SIGNALS)
             if error:
                 return error
@@ -281,7 +285,9 @@ def create_agent_os_routes(
         """POST /api/agent-os/experiments — Run an A/B experiment."""
         try:
             auth = _get_auth(body, headers)
-            tenant_id = (body.get("tenant_id") or "").strip()
+            if not auth.is_authenticated:
+                return _error(401, "authentication required")
+            tenant_id = (auth.tenant_id or "").strip()
             error = _require_permission(governance, auth, tenant_id, Permission.RUN_EXPERIMENTS)
             if error:
                 return error
@@ -325,7 +331,9 @@ def create_agent_os_routes(
         """GET /api/agent-os/experiments — List experiment history."""
         try:
             auth = _get_auth(body, headers)
-            tenant_id = (body.get("tenant_id") or "").strip() if body else ""
+            if not auth.is_authenticated:
+                return _error(401, "authentication required")
+            tenant_id = (auth.tenant_id or "").strip()
             error = _require_permission(governance, auth, tenant_id, Permission.VIEW_EXPERIMENTS)
             if error:
                 return error

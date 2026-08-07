@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, TypeVar, cast
 
 from .tenant import Tenant, TenantRegistry
+from .auth import AuthContext
 
 log = logging.getLogger(__name__)
 
@@ -128,13 +129,19 @@ def require_permission(permission: Permission) -> Callable[[F], F]:
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # M1 fix: prefer kwargs for reliability
-            tenant_id = kwargs.get("tenant_id")
-            email = kwargs.get("email")
-            if tenant_id is None and len(args) > 1:
-                tenant_id = args[1]
-            if email is None and len(args) > 2:
-                email = args[2]
+            # Prefer verified AuthContext over raw email string
+            auth_ctx = kwargs.get("auth_context")
+            if auth_ctx is not None and isinstance(auth_ctx, AuthContext):
+                email = auth_ctx.email
+                tenant_id = auth_ctx.tenant_id
+            else:
+                # Fallback: positional/kwargs (caller must guarantee identity)
+                tenant_id = kwargs.get("tenant_id")
+                email = kwargs.get("email")
+                if tenant_id is None and len(args) > 1:
+                    tenant_id = args[1]
+                if email is None and len(args) > 2:
+                    email = args[2]
             if tenant_id is None or email is None:
                 raise InsufficientPermissionError(
                     f"Cannot enforce permission {permission.value}: "

@@ -14,6 +14,7 @@ Design:
 
 from __future__ import annotations
 
+import re
 import json
 import os
 import tempfile
@@ -26,6 +27,13 @@ from pathlib import Path
 DEFAULT_SESSIONS_DIR = Path(
     os.environ.get("NEURALMIND_SESSIONS_DIR", Path.home() / ".config" / "neuralmind" / "sessions")
 )
+
+SESSION_TTL_SECONDS = int(os.environ.get("NEURALMIND_SESSION_TTL_SECONDS", 86400 * 30))
+
+
+def _validate_token(token: str) -> bool:
+    """Validate token format: UUID4 hex = 32 lowercase hex chars."""
+    return bool(re.fullmatch(r'[0-9a-f]{32}', token))
 
 
 @dataclass
@@ -72,6 +80,7 @@ class SessionStore:
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     f.write(data)
+                os.chmod(tmp_path, 0o600)
                 Path(tmp_path).replace(path)
             except OSError:
                 Path(tmp_path).unlink(missing_ok=True)
@@ -80,13 +89,18 @@ class SessionStore:
 
     def get_session(self, token: str) -> AuthContext | None:
         """Look up a session by token. Returns None if not found."""
-        if not token:
+        if not _validate_token(token):
             return None
         path = self._sessions_dir / f"{token}.json"
         if not path.exists():
             return None
         try:
             session = json.loads(path.read_text(encoding="utf-8"))
+            # Enforce session TTL
+            created_at = datetime.fromisoformat(session["created_at"])
+            if (datetime.now(timezone.utc) - created_at).total_seconds() > SESSION_TTL_SECONDS:
+                self.delete_session(token)
+                return None
             # Update last_used
             session["last_used"] = datetime.now(timezone.utc).isoformat()
             path.write_text(json.dumps(session, indent=2), encoding="utf-8")
@@ -101,6 +115,8 @@ class SessionStore:
 
     def delete_session(self, token: str) -> None:
         """Delete a session."""
+        if not _validate_token(token):
+            return
         path = self._sessions_dir / f"{token}.json"
         try:
             path.unlink()

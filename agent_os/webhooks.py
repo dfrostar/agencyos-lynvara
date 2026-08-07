@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import time
 import json
 import logging
 import uuid
@@ -125,6 +126,13 @@ class WebhookIngester:
                 return False
             timestamp = parts["t"]
             expected_sig = parts["v1"]
+            # Reject replayed webhooks: timestamp must be within 5 minutes of now
+            try:
+                sig_time = int(timestamp)
+            except (ValueError, TypeError):
+                return False
+            if abs(int(time.time()) - sig_time) > 300:
+                return False
             # signed_payload = timestamp + "." + raw_body
             signed_payload = f"{timestamp}.{raw_body.decode('utf-8')}"
             computed = hmac.new(
@@ -166,7 +174,7 @@ class WebhookIngester:
             return data.get("tenant_id")
 
         elif source == "custom":
-            return payload.get("tenant_id")
+            return headers.get("X-Tenant-ID")
 
         return None
 

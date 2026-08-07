@@ -206,10 +206,18 @@ class AgentOSHandler(BaseHTTPRequestHandler):
         return None
 
     def _drain_body(self) -> None:
-        """Consume remaining request body so the socket is clean for response."""
+        """Consume remaining request body so the socket is clean for response.
+
+        CRITICAL FIX: Capped read to MAX_BODY_SIZE to prevent DoS via
+        huge Content-Length with no body (or chunked encoding where
+        Content-Length is absent). Without cap, rfile.read(huge_number)
+        blocks the handler thread indefinitely.
+        """
         content_length = int(self.headers.get("Content-Length", 0))
         if content_length > 0:
-            self.rfile.read(content_length)
+            # Cap read: attacker cannot force unbounded blocking reads.
+            to_read = min(content_length, MAX_BODY_SIZE)
+            self.rfile.read(to_read)
 
     def _extract_path_params(self, pattern: str) -> dict[str, str] | None:
         """Extract path params from URL against a pattern.
@@ -426,24 +434,59 @@ def create_app(
     all_routes = {**existing_routes, **outreach_routes, **engagement_routes, **feedback_routes}
     
     # Add webhook config routes
-    all_routes.update(_create_webhook_config_routes(store))
+    all_routes.update(_create_webhook_config_routes(store, session_store))
     
     return all_routes
 
 
-def _create_webhook_config_routes(store: AgentOSStore) -> dict[tuple[str, str], Callable]:
-    """Create webhook configuration routes."""
+def _create_webhook_config_routes(
+    store: AgentOSStore,
+    session_store: SessionStore,
+) -> dict[tuple[str, str], Callable]:
+    """Create webhook configuration routes.
+
+    CRITICAL FIX: Added bearer-token auth and resolved tenant_id from
+    the authenticated session instead of trusting body['tenant_id'].
+    Previously these routes were completely unauthenticated and allowed
+    any caller to read/modify/delete webhook configs for any tenant.
+    """
     routes: dict[tuple[str, str], Callable] = {}
-    
-    def list_configs(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
-        tenant_id = body.get("tenant_id", "dev-tenant") if body else "dev-tenant"
+
+    def _resolve_auth(body: dict[str, Any] | None, headers: dict[str, str]) -> AuthContext:
+        token = headers.get("Authorization", "").replace("Bearer ", "")
+        if token:
+            session = session_store.get_session(token)
+            if session:
+                return session
+        return AuthContext(email="", tenant_id=None)
+
+    def list_configs(
+        body: dict[str, Any] | None,
+        headers: dict[str, str] | None = None,
+        **path_params: str,
+    ) -> tuple[int, dict[str, Any]]:
+        auth = _resolve_auth(body, headers or {})
+        if not auth.is_authenticated:
+            return 401, {"error": "authentication required"}
+        tenant_id = auth.tenant_id or ""
+        if not tenant_id:
+            return 400, {"error": "tenant_id required in session"}
         configs = store.list_webhook_configs(tenant_id)
         return 200, {"configs": configs, "count": len(configs)}
-    
-    def create_config(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+
+    def create_config(
+        body: dict[str, Any] | None,
+        headers: dict[str, str] | None = None,
+        **path_params: str,
+    ) -> tuple[int, dict[str, Any]]:
         if not body:
             return 400, {"error": "body required"}
-        tenant_id = body.get("tenant_id", "dev-tenant")
+        auth = _resolve_auth(body, headers or {})
+        if not auth.is_authenticated:
+            return 401, {"error": "authentication required"}
+        tenant_id = auth.tenant_id or ""
+        if not tenant_id:
+            return 400, {"error": "tenant_id required in session"}
         source = body.get("source")
         secret = body.get("secret")
         if not source or not secret:
@@ -456,11 +499,20 @@ def _create_webhook_config_routes(store: AgentOSStore) -> dict[tuple[str, str], 
             project_mapping=body.get("project_mapping"),
         )
         return 201, {"config_id": config_id, "tenant_id": tenant_id, "source": source}
-    
-    def delete_config(body: dict[str, Any] | None, **path_params: str) -> tuple[int, dict[str, Any]]:
+
+    def delete_config(
+        body: dict[str, Any] | None,
+        headers: dict[str, str] | None = None,
+        **path_params: str,
+    ) -> tuple[int, dict[str, Any]]:
         if not body:
             return 400, {"error": "body required"}
-        tenant_id = body.get("tenant_id", "dev-tenant")
+        auth = _resolve_auth(body, headers or {})
+        if not auth.is_authenticated:
+            return 401, {"error": "authentication required"}
+        tenant_id = auth.tenant_id or ""
+        if not tenant_id:
+            return 400, {"error": "tenant_id required in session"}
         source = body.get("source")
         if not source:
             return 400, {"error": "source required"}
