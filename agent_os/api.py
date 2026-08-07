@@ -100,6 +100,8 @@ def create_agent_os_routes(
     def create_tenant(body: dict[str, Any], headers: dict[str, str] | None = None, **path_params: str) -> tuple[int, dict[str, Any]]:
         """POST /api/agent-os/tenants — Create a tenant (bootstrap, no auth required)."""
         try:
+            if not body or not isinstance(body, dict):
+                return _error(400, "body must be a JSON object")
             tenant_id = (body.get("tenant_id") or "").strip()
             name = body.get("name", tenant_id)
             tier = body.get("tier", "free")

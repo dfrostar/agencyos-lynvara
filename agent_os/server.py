@@ -259,6 +259,10 @@ class AgentOSHandler(BaseHTTPRequestHandler):
         return None, None
 
     def do_GET(self) -> None:
+        # Health endpoint (system-level, no auth required)
+        if self.path == "/health" or self.path == "/health/":
+            self._send_response(200, {"status": "ok", "version": "1.0.0"})
+            return
         # Intercept webhook stats path
         if self.path.startswith("/api/agent-os/webhooks/stats"):
             auth_header = self.headers.get("Authorization", "").replace("Bearer ", "")
