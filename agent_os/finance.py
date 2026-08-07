@@ -20,7 +20,6 @@ Design:
 
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 import uuid
@@ -145,13 +144,14 @@ def create_finance_routes(
             revenue_id = str(uuid.uuid4())
             now = _now()
 
-            store._get_conn().execute(
+            conn = store._get_conn()
+            conn.execute(
                 """INSERT INTO revenue_entries
                    (id, tenant_id, engagement_id, description, amount, currency, source, recorded_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (revenue_id, tenant_id, engagement_id, description, amount, currency, source, now),
             )
-            store._get_conn().commit()
+            conn.commit()
 
             return _json_response(201, {
                 "id": revenue_id,
@@ -241,13 +241,14 @@ def create_finance_routes(
             cost_id = str(uuid.uuid4())
             now = _now()
 
-            store._get_conn().execute(
+            conn = store._get_conn()
+            conn.execute(
                 """INSERT INTO cost_entries
                    (id, tenant_id, engagement_id, description, amount, currency, category, recorded_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (cost_id, tenant_id, engagement_id, description, amount, currency, category, now),
             )
-            store._get_conn().commit()
+            conn.commit()
 
             return _json_response(201, {
                 "id": cost_id,
@@ -434,6 +435,7 @@ def create_finance_routes(
                 return _error(400, "tenant_id required")
 
             conn = store._get_conn()
+            conn.row_factory = sqlite3.Row
 
             revenue_row = conn.execute(
                 "SELECT COALESCE(SUM(amount), 0) as total FROM revenue_entries WHERE tenant_id = ?",
@@ -498,6 +500,7 @@ def create_finance_routes(
                 return _error(400, "tenant_id required")
 
             conn = store._get_conn()
+            conn.row_factory = sqlite3.Row
 
             # Get monthly revenue for last 12 months
             revenue_rows = conn.execute(

@@ -10,12 +10,17 @@
 ## Current State
 
 ```
-Tests:     145 passing (all green)
+Tests:     178 passing (all green)
 Server:    ✅ RUNNING (port 9000)
 Level 5:   ✅ DONE (webhook ingestion + sources)
 Level 6:   ✅ DONE (closed-loop engine)
 Level 9:   ✅ DONE (tuner incumbents + adversarial QA hardening)
 Level 7-8: ❌ NOT BUILT
+B-04:      ✅ DONE (dashboard health score + 3 endpoints)
+B-05:      ✅ DONE (webhook worker background thread)
+B-06:      ✅ DONE (signal sources + raw signal ingestion)
+B-08:      ✅ DONE (weekly review aggregation)
+B-07:      ✅ DONE (feedback→knowledge loop, verified wired)
 QA:        ✅ COMPLETE (all CRITICAL/HIGH/MEDIUM patched, QA_REPORT.md created)
 ```
 
@@ -37,12 +42,12 @@ QA:        ✅ COMPLETE (all CRITICAL/HIGH/MEDIUM patched, QA_REPORT.md created)
 
 | ID | Task | Level | Est. | Status | Verification |
 |----|------|-------|------|--------|--------------|
-| B-05 | Wire webhook worker to server | 5 | 2h | 🔴 TODO | Webhook creates signal automatically |
-| B-06 | Connect signal sources | 5 | 3h | 🔴 TODO | Competitor, regulatory, market signals flow in |
-| B-07 | Feedback → knowledge loop | 6 | 2h | 🔴 TODO | Client feedback auto-creates knowledge entry |
-| B-08 | Weekly business review | 6 | 3h | 🔴 TODO | Auto-summarize pipeline, revenue, signals |
+| B-05 | Wire webhook worker to server | 5 | 2h | ✅ DONE | WebhookWorker runs in daemon thread, processes queued events |
+| B-06 | Connect signal sources | 5 | 3h | ✅ DONE | signal_sources.py + raw_signals table, 7 new routes |
+| B-07 | Feedback → knowledge loop | 6 | 2h | ✅ DONE | feedback.py _create_knowledge_entry wired into PATCH status=applied |
+| B-08 | Weekly business review | 6 | 3h | ✅ DONE | weekly_review.py aggregates finance/outreach/engagements/feedback/signals/webhooks/knowledge |
 
-**Deliverable:** Automated pipeline — webhooks create signals, feedback becomes knowledge, weekly reviews auto-generate.
+**Deliverable:** ✅ Automated pipeline — webhooks create signals, feedback becomes knowledge, weekly reviews auto-generate.
 
 ---
 
@@ -50,7 +55,7 @@ QA:        ✅ COMPLETE (all CRITICAL/HIGH/MEDIUM patched, QA_REPORT.md created)
 
 | ID | Task | Level | Est. | Status | Verification |
 |----|------|-------|------|--------|--------------|
-| B-04 | Business health dashboard | 4 | 4h | 🔴 TODO | Leads, revenue, engagement status visible |
+| B-04 | Business health dashboard | 4 | 4h | ✅ DONE | dashboard.py: health score + 3 endpoints (full/health/metrics) |
 
 **Deliverable:** Single pane of glass — leads, revenue, engagement status, signal activity visible.
 
@@ -101,7 +106,7 @@ QA:        ✅ COMPLETE (all CRITICAL/HIGH/MEDIUM patched, QA_REPORT.md created)
 | A-03 | Stripe event normalizer | `6d13361` | `sources/stripe.py` |
 | A-04 | Custom event normalizer | `6d13361` | `sources/custom.py` |
 | A-05 | Webhook config + tenant resolution | `6d13361` | `store.py` extension |
-| A-06 | Webhook background worker | `6d13361` | Coded, not server-wired |
+| A-06 | Webhook background worker | `6d13361` | Coded, server-wired in Phase 2 |
 | D1 | Feedback loop extraction | `3ab1440` | `feedback.py` + 12 tests |
 | D2 | Framework docs (ARCH/BRD/PRD/TRD) | `30a7d21` | 5 docs |
 | D3 | Outreach extraction | `74521f2` | `outreach.py` + 12 tests |
@@ -113,6 +118,10 @@ QA:        ✅ COMPLETE (all CRITICAL/HIGH/MEDIUM patched, QA_REPORT.md created)
 | QA-2 | H1-H3 server hardening | `023f58c`, `219fe29` | Body size limit, chunked, Stripe replay |
 | QA-3 | M1-M3 cleanup | `023f58c` | Decorator, audit log, f-string |
 | QA-4 | Phase 1 inline review | — | This document |
+| B-05 | Webhook worker wired | — | server.py:564-579, daemon thread |
+| B-06 | Signal sources | — | signal_sources.py + store.py, 20 tests |
+| B-07 | Feedback→knowledge verified | — | feedback.py:68-109, 318-339 |
+| B-08 | Weekly review | — | weekly_review.py, 7 routes |
 
 ---
 

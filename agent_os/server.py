@@ -11,20 +11,26 @@ import logging
 import os
 import re
 import sqlite3
+import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Callable
 
 from .api import create_agent_os_routes
 from .auth import AuthContext, SessionStore
+from .dashboard import create_dashboard_routes
 from .engagements import create_engagement_routes
 from .experiment import ExperimentRunner
 from .finance import create_finance_routes
 from .feedback import create_feedback_routes
 from .knowledge import create_knowledge_routes
 from .outreach import create_outreach_routes
+from .signal_sources import create_signal_source_routes
 from .signals import SignalDetector
 from .store import AgentOSStore
 from .tenant import TenantRegistry
+from .weekly_review import create_weekly_review_routes
+from .weekly_self_improvement import create_self_improvement_review_routes
+from .self_improvement import SelfImprovementEngine, create_self_improvement_routes
 
 log = logging.getLogger(__name__)
 
@@ -396,6 +402,8 @@ class AgentOSHandler(BaseHTTPRequestHandler):
 def create_app(
     store: AgentOSStore | None = None,
     session_store: SessionStore | None = None,
+    signal_detector: SignalDetector | None = None,
+    self_improvement_engine: Any = None,
 ) -> dict[tuple[str, str], Callable]:
     """Create all route handlers."""
     if store is None:
@@ -406,7 +414,8 @@ def create_app(
 
     # Create component registry
     registry = TenantRegistry()
-    signal_detector = SignalDetector()
+    if signal_detector is None:
+        signal_detector = SignalDetector()
     experiment_runner = ExperimentRunner()
 
     # Get existing routes from api.py
@@ -442,8 +451,60 @@ def create_app(
     # Get finance routes
     finance_routes = create_finance_routes(store=store, session_store=session_store)
 
+    # Get signal source routes (B-06)
+    signal_source_routes = create_signal_source_routes(
+        store=store,
+        session_store=session_store,
+        get_auth=_default_get_auth,
+    )
+
+    # Get weekly review routes (B-08)
+    weekly_review_routes = create_weekly_review_routes(
+        store=store,
+        session_store=session_store,
+        get_auth=_default_get_auth,
+    )
+
+    # Get weekly self-improvement review routes (B-10)
+    weekly_self_improvement_routes = create_self_improvement_review_routes(
+        store=store,
+        session_store=session_store,
+        get_auth=_default_get_auth,
+    )
+
+    # Get dashboard routes (B-04)
+    dashboard_routes = create_dashboard_routes(
+        store=store,
+        session_store=session_store,
+        get_auth=_default_get_auth,
+    )
+
+
+    # B-09: Self-improvement engine routes
+    if self_improvement_engine is not None:
+        self_improvement_routes = create_self_improvement_routes(
+            store=store,
+            engine=self_improvement_engine,
+            session_store=session_store,
+            get_auth=_default_get_auth,
+        )
+    else:
+        self_improvement_routes = {}
+
     # Merge routes
-    all_routes = {**existing_routes, **outreach_routes, **engagement_routes, **feedback_routes, **knowledge_routes, **finance_routes}
+    all_routes = {
+        **existing_routes,
+        **outreach_routes,
+        **engagement_routes,
+        **feedback_routes,
+        **knowledge_routes,
+        **finance_routes,
+        **signal_source_routes,
+        **weekly_review_routes,
+        **weekly_self_improvement_routes,
+        **dashboard_routes,
+        **self_improvement_routes,
+    }
     
     # Add webhook config routes
     all_routes.update(_create_webhook_config_routes(store, session_store))
@@ -547,7 +608,17 @@ def main() -> None:
     store = create_default_store()
     session_store = SessionStore()
     
-    routes = create_app(store, session_store)
+    # B-09: Create SignalDetector + SelfImprovementEngine BEFORE routes
+    # (routes need the engine instance to register endpoints)
+    from .signals import SignalDetector
+    engine_detector = SignalDetector(store=store, tenant_id="default")
+    self_improvement_engine = SelfImprovementEngine(store, engine_detector, "default")
+    
+    routes = create_app(
+        store, session_store,
+        signal_detector=engine_detector,
+        self_improvement_engine=self_improvement_engine,
+    )
     
     # Inject routes into handler class
     AgentOSHandler.routes = routes
@@ -561,6 +632,22 @@ def main() -> None:
     server.store = store
     server.session_store = session_store
     
+    # B-05: Start webhook worker in background thread for async event processing
+    from .webhooks import WebhookWorker
+    worker = WebhookWorker(store)
+    worker_thread = threading.Thread(
+        target=_run_worker_loop,
+        args=(worker,),
+        daemon=True,
+        name="webhook-worker",
+    )
+    worker_thread.start()
+    log.info("Webhook worker started (background thread)")
+    
+    # B-09: Start self-improvement engine (BehaviorLearner + ProactiveExplorer)
+    self_improvement_engine.start()
+    log.info("Self-improvement engine started (background threads)")
+    
     log.info("Agent OS server starting on port %d", port)
     log.info("Routes registered: %d", len(routes))
     
@@ -568,7 +655,22 @@ def main() -> None:
         server.serve_forever()
     except KeyboardInterrupt:
         log.info("Shutting down...")
+        self_improvement_engine.stop()
+        worker.stop()
         server.shutdown()
+
+
+def _run_worker_loop(worker: Any) -> None:
+    """Run the webhook worker's async loop in a dedicated thread."""
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(worker.run())
+    except asyncio.CancelledError:
+        pass
+    finally:
+        loop.close()
 
 
 if __name__ == "__main__":

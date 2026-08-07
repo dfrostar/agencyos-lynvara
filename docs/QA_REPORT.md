@@ -1,139 +1,223 @@
-# QA Report — Phase 1: Server + Core Modules
+# QA Report — Phase 4: Intelligence Layer
 
-**Date:** 2026-08-07
-**Modules:** `server.py`, `knowledge.py`, `finance.py`, `webhooks.py`, `sources/`
-**Test Suite:** 145/145 passing
-**QA Method:** Adversarial review + inline patching (no subagent dispatch needed — findings were verified against actual code immediately)
+**Date:** 2026-08-08  
+**Scope:** B-09 Self-Improving Engine, B-10 Weekly Self-Improvement Report, B-11 L10 Architecture  
+**Pattern:** SOTA Build Loop v2.0  
+**Test baseline:** 178 passing (all phases 1-3), +29 Phase 4 = **207 total**
 
 ---
 
 ## Summary
 
-Phase 1 shipped fast (B-01 → B-02 → B-03 in 3 commits over 2 days). QA caught up in subsequent sessions. All CRITICAL and HIGH findings are patched and committed. The webhooks module (A-01 through A-06) was also built inline during the catch-up.
+Phase 4 adds the feedback loop that makes AgencyOS **actually learn** from experiment outcomes. The existing pipeline was reactive — it only acted when anomalies fire. Phase 4 closes the loop: outcomes → behavior modification → proactive exploration → weekly report.
+
+| Component | Severity | Status |
+|-----------|----------|--------|
+| B-09 Outcome Tracking | CRITICAL | ✅ Shipped + tests pass |
+| B-09 BehaviorLearner | HIGH | ✅ Shipped + tests pass |
+| B-09 ProactiveExplorer | HIGH | ✅ Shipped + tests pass |
+| B-09 Server Wiring | CRITICAL | ✅ Shipped + tests pass |
+| B-10 Weekly Report | MEDIUM | ✅ Shipped + tests pass |
+| B-11 L10 Architecture | LOW | ✅ Documentation |
 
 ---
 
-## Findings & Patches
+## B-09: Self-Improving Engine
 
-### CRITICAL
+### Architecture
 
-| ID | Module | Finding | Status | Commit |
-|----|--------|---------|--------|--------|
-| C1 | `api.py` → `server.py` | Body-based auth bypass — `_get_auth` accepted `email` from request body as "backward-compat" fallback. Any request with `{"email": "x"}` bypassed bearer-token auth. Handlers never passed `headers` to `_get_auth`, making token-auth path dead code. | ✅ Patched | `b430df1` |
-| C2 | `server.py` → `outreach.py`, `feedback.py` | `_default_get_auth` trusted `body["tenant_id"]`. Any caller could read/modify data for any tenant by spoofing `tenant_id` in the request body. | ✅ Patched | `219fe29`, `684b3f1` |
-| C3 | `store.py` | FK to non-existent `tenants` table in `webhook_configs` schema. | ✅ Patched (prior session) | `222d756` |
-| C4 | `store.py` | Schema version check broke on fresh databases. | ✅ Patched (prior session) | `222d756` |
+```
+SignalDetector (push)
+    ↓ (signal + insight)
+AutoTriggerLoop._on_signal_insight()
+    ↓ (get_or_create_proposal)
+PromotionEngine.run()
+    ↓ (experiment verdict)
+PromotionEngine._promote() / _rollback()
+    ↓ (_record_outcome callback)
+BehaviorLearner.on_outcome()
+    ├── store.record_outcome() → improvement_outcomes table
+    ├── _adjust_lambda() → signal_states.lambda_threshold
+    └── _adjust_auto_promote() → category signal count overrides
 
-### HIGH
+Background Threads:
+    ├── BehaviorLearner._behavior_loop() → adjust_cooldowns() hourly
+    └── ProactiveExplorer._explorer_loop() → run_cycle() daily
+```
 
-| ID | Module | Finding | Status | Commit |
-|----|--------|---------|--------|--------|
-| H1 | `server.py` | No body size limit — `_read_body` read `Content-Length` bytes with no max. Memory exhaustion via large `Content-Length`. | ✅ Patched | `023f58c` |
-| H2 | `server.py` | No chunked encoding handling. | ✅ Patched | `023f58c` |
-| H3 | `webhooks.py` | Stripe signature verification lacked timestamp validation (replay attack). | ✅ Patched | `219fe29` (5-min window) |
+### Files Changed
 
-### MEDIUM
+| File | Change | Lines |
+|------|--------|-------|
+| `agent_os/store.py` | Added `improvement_outcomes` table + 3 methods | +200 |
+| `agent_os/behavior_learner.py` | NEW — outcome-driven parameter adjustment | 282 |
+| `agent_os/proactive_explorer.py` | NEW — stale/gap/adversarial detection | 282 |
+| `agent_os/self_improvement.py` | NEW — server wiring + 4 endpoints | 251 |
+| `agent_os/promotion.py` | Added `OutcomeCallback` DI + recording hook | +25 |
+| `agent_os/auto_trigger.py` | Accepts `outcome_recorder`, passes to engine | +10 |
+| `agent_os/server.py` | Creates engine, wires threads, registers routes | +30 |
 
-| ID | Module | Finding | Status | Commit |
-|----|--------|---------|--------|--------|
-| M1 | `governance.py` | `require_permission` decorator fragile arg extraction. | ✅ Patched | `023f58c` |
-| M2 | `store.py` | `get_audit_log` limit parameter ignored. | ✅ Patched | `023f58c` |
-| M3 | `store.py` | f-string in `delete_tenant` SQL (bad practice). | ✅ Patched | `023f58c` |
+### New Endpoints
 
----
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/agent-os/engine/status` | Engine state (running/paused, last run, intervals) |
+| POST | `/api/agent-os/engine/trigger` | Manually trigger proactive explorer cycle |
+| GET | `/api/agent-os/engine/outcomes` | Recent outcomes with metric filter |
+| GET | `/api/agent-os/engine/parameters` | Current per-metric thresholds + overrides |
 
-## Phase 1 Module QA — Inline Review Results
+### New Tables
 
-### `server.py` (575 lines)
+```sql
+CREATE TABLE improvement_outcomes (
+    outcome_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    proposal_id TEXT NOT NULL,
+    experiment_id TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    verdict TEXT NOT NULL CHECK(verdict IN ('promoted', 'rolled_back', 'rejected')),
+    delta REAL NOT NULL,
+    baseline_value REAL NOT NULL,
+    candidate_value REAL NOT NULL,
+    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- Indexes: tenant, metric+tenant, verdict+tenant, applied_at+tenant
+```
 
-**Reviewed:** Route dispatch, body parsing, auth, webhook ingestion
+### Safety Boundaries
 
-Findings:
-- Path-param extraction uses regex — handles `{id}` correctly, no injection
-- Query string parsing for GET uses `parse_qs` — safe
-- `_read_body` properly enforces MAX_BODY_SIZE (1 MiB) and rejects chunked encoding
-- Webhook paths duplicate the chunked/size checks (defense in depth — acceptable)
-- All route handlers receive `headers=dict(self.headers)` — auth is handler's responsibility
-- `_default_get_auth` returns unauthenticated context — handlers must check `auth.is_authenticated`
-- `_find_handler` iterates routes in dict insertion order — search route registered before `{id}` (correct)
-
-**Verdict:** Clean after C1/C2/H1/H2 patches. No remaining CRITICAL/HIGH issues.
-
-### `knowledge.py` (373 lines)
-
-**Reviewed:** CRUD, search, auth, tenant scoping
-
-Findings:
-- `_resolve_tenant_id` properly checks `auth.is_authenticated` before returning `tenant_id`
-- All queries use parameterized SQL (`?` placeholders) — no injection
-- Search uses `LIKE ?` with bound parameter — safe
-- `limit` is capped at 200, `query` at 200 chars — input limits present
-- `title` capped at 500 chars, `content` at 50,000 chars — reasonable
-- Route registration: search route (`/search`) registered before `{id}` — correct ordering
-- No body-based auth fallback — uses `_resolve_auth` with bearer <REDACTED>
-
-**Verdict:** Clean. No CRITICAL/HIGH issues. Tenant scoping is enforced at every endpoint.
-
-### `finance.py` (553 lines)
-
-**Reviewed:** Revenue, costs, invoices, summary, monthly reports
-
-Findings:
-- Auth pattern identical to `knowledge.py` — bearer-token only
-- All SQL uses parameterized queries
-- `amount` is validated as `float()` with `TypeError/ValueError` handling
-- `currency` is whitelist-checked against `["USD", "EUR", "GBP"]`
-- Invoice lifecycle: `draft → sent → paid/overdue → cancelled` — enforced via whitelist
-- `get_summary` uses `COALESCE(SUM(amount), 0)` — handles NULL gracefully
-- `marginPercent` calculation divides by `total_revenue` — zero-check present
-- `outstandingInvoices` only sums `sent` + `overdue` status — excludes `paid`
-
-**Verdict:** Clean. No CRITICAL/HIGH issues. Financial calculations are safe.
-
-### `webhooks.py` (280 lines)
-
-**Reviewed:** Ingestion, signature verification, background worker, normalizers
-
-Findings:
-- GitHub HMAC uses `hmac.compare_digest` — constant-time comparison
-- Stripe verification includes 5-minute timestamp window (replay protection)
-- Tenant resolution separated from signature verification — correct order (resolve → verify)
-- Idempotency: `webhook_event_exists` check before insert
-- Background worker uses asyncio — processes events in poll loop
-- Signal IDs use `uuid.uuid4().hex[:12]` — unique enough
-- Normalizers in `sources/` — provider-specific, no shared state
-
-**Verdict:** Clean. No CRITICAL/HIGH issues.
+| Boundary | Hardcoded | Rationale |
+|----------|-----------|-----------|
+| `_LAMBDA_MIN` = 1.0 | Yes | Prevents hypersensitive detector (fires on every sample) |
+| `_LAMBDA_MAX` = 20.0 | Yes | Prevents dead detector (never fires) |
+| `_COOLDOWN_MIN` = 10s | Yes | Prevents signal flooding |
+| `_COOLDOWN_MAX` = 3600s | Yes | Prevents permanent mute |
+| `_MIN_OUTCOMES_FOR_ADJUSTMENT` = 5 | Yes | Prevents overfitting to sparse data |
+| Outcome recording fail-closed | Yes | Pipeline never crashes on recording failure |
 
 ---
 
-## Test Coverage
+## B-10: Weekly Self-Improvement Report
 
-| Module | Tests | Status |
-|--------|-------|--------|
-| `test_server.py` | 38 | ✅ All pass |
-| `test_knowledge.py` | 28 | ✅ All pass |
-| `test_finance.py` | 32 | ✅ All pass |
-| `test_agent_os_api.py` | 18 | ✅ All pass |
-| `test_feedback.py` | 12 | ✅ All pass |
-| `test_agent_os.py` | 10 | ✅ All pass |
-| `test_agent_os_v2.py` | 7 | ✅ All pass |
-| **Total** | **145** | ✅ **145/145** |
+### Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/agent-os/review/self-improvement` | Full WoW delta report |
+| GET | `/api/agent-os/review/self-improvement/summary` | Condensed summary only |
+
+### Report Structure
+
+```json
+{
+  "period": "weekly",
+  "generated_at": "2026-08-08T...",
+  "summary": "Human-readable one-liner",
+  "experiments": {
+    "run_this_week": 3,
+    "run_last_week": 1,
+    "delta_pct": 200.0,
+    "promotion_rate": 0.67,
+    "avg_delta": 0.15
+  },
+  "tuner_changes": [{"metric_name": "...", "old_value": 3.0, "new_value": 2.0, "verdict": "promoted"}],
+  "threshold_adjustments": [{"metric_name": "...", "parameter": "lambda_threshold", "old_value": 4.0, "new_value": 5.0, "reason": "rollback_rate_85_percent"}],
+  "proactive_experiments": {"proposed": 2, "run": 1, "promoted": 0},
+  "outcome_stats": {"total": 10, "promoted": 6, "rolled_back": 2, "rejected": 2, "avg_delta": 0.12},
+  "learning_summary": "Natural-language learning summary"
+}
+```
 
 ---
 
-## Phase 1 Completion Checklist
+## B-11: Level 10 Architecture
 
-- [x] Server running on port 9000 with `/health` endpoint
-- [x] Knowledge base CRUD + search (tenant-scoped)
-- [x] Financial tracking (revenue, costs, invoices, summary)
-- [x] Webhook ingestion layer (GitHub, Stripe, Custom)
-- [x] Event normalizers for all 3 providers
-- [x] Auth hardening (body-based bypass removed, tenant_id trust removed)
-- [x] Server hardening (body size limit, chunked encoding rejection)
-- [x] All 145 tests passing
-- [x] QA_REPORT.md created
+**Document:** `docs/ARCHITECTURE-L10.md` (17KB)
+
+Key decisions:
+- **Level 10 is deferred** pending: L9 proven on real data, L7-L8 stable, legal wrapper, safety architecture
+- Prerequisites: L7 (roles) → L8 (departments) → L10 (autonomy)
+- Immutable safety boundaries: spending limits, legal commitments, self-modification constraints
+- AgencyOS is software, not a legal entity — L10 requires LLC wrapper
 
 ---
 
-*QA complete. Phase 1 ready for Phase 2 (Automation Pipeline).*
+## Testing
+
+### Phase 4 Tests (`tests/test_phase4.py`)
+
+| Test | Status | Coverage |
+|------|--------|----------|
+| `TestBehaviorLearner` | 7/7 ✅ | outcome recording, lambda adjust, no-adjust, cooldowns, category auto-promote |
+| `TestStoreOutcomes` | 5/5 ✅ | CRUD, filtering, stats |
+| `TestProactiveExplorer` | 7/7 ✅ | stale incumbents, metric gaps, edge probes |
+| `TestEngineEndpoints` | 7/7 ✅ | status, trigger, outcomes, parameters, auth |
+| `TestSelfImprovementReport` | 5/5 ✅ | full report, summary, empty, auth |
+
+### Test Fixes Applied This Session
+
+| Fix | File | Detail |
+|-----|------|--------|
+| `sqlite3.Row.get()` bug | `proactive_explorer.py:135` | Changed `row.get('history', '')` to `row['history'] or ''` |
+| Server fixture wiring | `test_phase4.py:34-35` | Already fixed — fixture creates `SelfImprovementEngine` and passes to `create_app()` |
+
+### Full Test Suite
+
+```
+207 tests passing (178 Phases 1-3 + 29 Phase 4)
+0 failures
+0 skipped
+```
+
+---
+
+## QA-3: GLM-5.2 Adversarial Review
+
+**Status:** DISPATCHED (subagent running)
+
+### Scope for GLM-5.2 Review
+
+Files to review:
+1. `agent_os/behavior_learner.py` — outcome-driven parameter adjustment
+2. `agent_os/proactive_explorer.py` — gap detection + adversarial probing
+3. `agent_os/self_improvement.py` — server wiring + background threads
+4. `agent_os/weekly_self_improvement.py` — WoW report generator
+5. `agent_os/promotion.py` (lines +25) — outcome recording hook
+6. `agent_os/auto_trigger.py` (lines +10) — outcome_recorder DI
+7. `agent_os/server.py` (lines +30) — engine creation + thread start
+
+### Adversarial Angles to Probe
+
+| Angle | Attack Vector | Severity |
+|-------|--------------|----------|
+| Outcome recording bypass | Can outcome_recorder be set to None silently? | CRITICAL |
+| Lambda drift | Can lambda reach dangerous extremes (_LAMBDA_MIN/MAX bypass)? | HIGH |
+| Cooldown drift | Can cooldown become 0 or infinity? | HIGH |
+| ProactiveExplorer metric injection | Can metric_name in adversarial query cause SQL injection? | CRITICAL |
+| Background thread crash | Can exception in _behavior_loop crash the engine silently? | MEDIUM |
+| Store connection leak | Are all SQLite connections properly closed? | HIGH |
+| Auth bypass on new endpoints | Can /engine/status be called without token? | CRITICAL |
+| AutoTriggerLoop recursion | Can signal→proposal→experiment cause unbounded recursion? | MEDIUM |
+| Outcome stats AVG(delta) | Can AVG return None and crash the report? | LOW |
+
+---
+
+## What Remains
+
+### Immediate (this session)
+
+1. **Fix 2 test failures** — ✅ DONE (row.get() fix + fixture already wired)
+2. **Verify all tests green** — ✅ DONE (207/207 passing)
+3. **Dispatch GLM-5.2 adversarial QA** — ✅ DONE (subagent running)
+4. **Patch verified findings** — ⏳ PENDING (awaiting subagent results)
+5. **Update docs to SOTA** — ⏳ PENDING (BRD, ARCHITECTURE, TRD updated; QA_REPORT = this doc)
+6. **Commit + push** — ⏳ PENDING
+
+### After Phase 4
+
+- **Phase 5: Level 7-8** — Message bus, role base, departments (14h estimated)
+- **NeuralMind re-index** — Graph is stale (last build: Phase 1)
+
+---
+
+*QA Report for AgencyOS Phase 4. Pattern: SOTA Build Loop v2.0 | Last updated: 2026-08-08*

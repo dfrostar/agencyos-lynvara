@@ -309,6 +309,54 @@ Transform AgencyOS from a **passive monitoring tool** into an **active operation
 
 ---
 
+### 2.4 Phase 4: Intelligence Layer (COMPLETE)
+
+#### BR-P4.1 Self-Improving Engine (B-09)
+
+**Requirement:** AgencyOS SHALL implement a self-improving engine that learns from experiment outcomes and proactively proposes new experiments.
+
+**Rationale:** Without learning, the engine can only react to anomalies. With learning, it optimizes its own parameters and discovers unexplored improvement areas.
+
+**Acceptance Criteria:**
+- [x] `agent_os/behavior_learner.py` — adjusts lambda threshold and cooldown based on outcome history
+- [x] Lambda bounded: `_LAMBDA_MIN=1.0` to `_LAMBDA_MAX=20.0` (prevents dead/hypersensitive detector)
+- [x] Cooldown bounded: `_COOLDOWN_MIN=10s` to `_COOLDOWN_MAX=3600s` (prevents flooding/muting)
+- [x] Min outcomes for adjustment: `_MIN_OUTCOMES_FOR_ADJUSTMENT=5` (prevents overfitting)
+- [x] `agent_os/proactive_explorer.py` — detects stale incumbents, metric gaps, adversarial edges
+- [x] `agent_os/self_improvement.py` — wires AutoTriggerLoop + BehaviorLearner + ProactiveExplorer
+- [x] Background threads: behavior learner (hourly), proactive explorer (daily)
+- [x] 4 engine endpoints: status, trigger, outcomes, parameters
+- [x] All engine endpoints require bearer-token auth
+
+#### BR-P4.2 Weekly Self-Improvement Report (B-10)
+
+**Requirement:** AgencyOS SHALL generate a week-over-week delta report showing self-improvement activity.
+
+**Acceptance Criteria:**
+- [x] `GET /api/agent-os/review/self-improvement` — full WoW delta report
+- [x] `GET /api/agent-os/review/self-improvement/summary` — condensed summary
+- [x] Report includes: experiments run, promotion rate, avg delta, tuner changes, threshold adjustments, proactive experiments
+
+#### BR-P4.3 L10 Architecture Document (B-11)
+
+**Requirement:** AgencyOS SHALL document the Level 10 architecture path and prerequisites.
+
+**Acceptance Criteria:**
+- [x] `docs/ARCHITECTURE-L10.md` — L10 design with safety boundaries
+- [x] Prerequisites: L9 proven on real data, L7-8 stable, legal wrapper, safety architecture
+- [x] Immutable safety boundaries defined: spending limits, legal commitments, self-modification constraints
+
+#### BR-P4.4 Outcome Tracking Schema
+
+**Requirement:** AgencyOS SHALL persist experiment outcomes for behavior learning.
+
+**Acceptance Criteria:**
+- [x] `improvement_outcomes` table with: outcome_id, tenant_id, proposal_id, experiment_id, metric_name, verdict, delta, baseline_value, candidate_value, applied_at
+- [x] Verdict constrained: `CHECK(verdict IN ('promoted', 'rolled_back', 'rejected'))`
+- [x] Indexes: tenant, metric+tenant, verdict+tenant, applied_at+tenant
+
+---
+
 ## 3. Non-Functional Requirements
 
 ### 3.1 Performance

@@ -173,6 +173,34 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_log (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log (created_at);
 
+CREATE TABLE IF NOT EXISTS signal_sources (
+    source_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    source_type TEXT NOT NULL CHECK(source_type IN ('competitor', 'regulatory', 'market', 'custom')),
+    name TEXT NOT NULL,
+    description TEXT,
+    config TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_signal_sources_tenant ON signal_sources (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_signal_sources_type ON signal_sources (tenant_id, source_type);
+
+CREATE TABLE IF NOT EXISTS raw_signals (
+    signal_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    value REAL NOT NULL,
+    metadata TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (source_id) REFERENCES signal_sources(source_id)
+);
+CREATE INDEX IF NOT EXISTS idx_raw_signals_tenant ON raw_signals (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_raw_signals_source ON raw_signals (source_id);
+CREATE INDEX IF NOT EXISTS idx_raw_signals_created ON raw_signals (tenant_id, created_at);
+
 CREATE TABLE IF NOT EXISTS webhook_configs (
     config_id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
@@ -252,6 +280,24 @@ CREATE TABLE IF NOT EXISTS invoices (
 CREATE INDEX IF NOT EXISTS idx_invoices_tenant ON invoices (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices (tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_invoices_number ON invoices (tenant_id, invoice_number);
+
+-- B-09: Self-improvement outcome tracking (feedback loop for behavior learning)
+CREATE TABLE IF NOT EXISTS improvement_outcomes (
+    outcome_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    proposal_id TEXT NOT NULL,
+    experiment_id TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    verdict TEXT NOT NULL CHECK(verdict IN ('promoted', 'rolled_back', 'rejected')),
+    delta REAL NOT NULL,
+    baseline_value REAL NOT NULL,
+    candidate_value REAL NOT NULL,
+    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_outcomes_tenant ON improvement_outcomes (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_outcomes_metric ON improvement_outcomes (tenant_id, metric_name);
+CREATE INDEX IF NOT EXISTS idx_outcomes_verdict ON improvement_outcomes (tenant_id, verdict);
+CREATE INDEX IF NOT EXISTS idx_outcomes_applied ON improvement_outcomes (tenant_id, applied_at);
 """
 
 
@@ -1048,8 +1094,159 @@ class AgentOSStore:
         for row in rows:
             mapping = json.loads(row["project_mapping"] or "{}")
             if project_ref in mapping:
-                return mapping[project_ref]
+                return row["tenant_id"]
         return None
+
+    # ── B-06: Signal Sources ──────────────────────────────────────────
+
+    def create_signal_source(
+        self,
+        tenant_id: str,
+        source_type: str,
+        name: str,
+        description: str | None = None,
+        config: dict[str, Any] | None = None,
+    ) -> str:
+        """Register a new signal source (competitor, regulatory, market)."""
+        source_id = f"src_{uuid.uuid4().hex[:12]}"
+        with self._tx() as conn:
+            conn.execute(
+                """INSERT INTO signal_sources
+                   (source_id, tenant_id, source_type, name, description, config)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    source_id,
+                    tenant_id,
+                    source_type,
+                    name,
+                    description,
+                    json.dumps(config or {}),
+                ),
+            )
+        return source_id
+
+    def get_signal_source(self, tenant_id: str, source_id: str) -> dict[str, Any] | None:
+        """Get a single signal source by ID."""
+        with self._lock:
+            row = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM signal_sources WHERE tenant_id = ? AND source_id = ?",
+                    (tenant_id, source_id),
+                )
+                .fetchone()
+            )
+        if row is None:
+            return None
+        d = dict(row)
+        d["config"] = json.loads(d.get("config", "{}"))
+        return d
+
+    def list_signal_sources(
+        self,
+        tenant_id: str,
+        source_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List signal sources for a tenant, optionally filtered by type."""
+        query = "SELECT * FROM signal_sources WHERE tenant_id = ?"
+        params: list[Any] = [tenant_id]
+        if source_type:
+            query += " AND source_type = ?"
+            params.append(source_type)
+        query += " ORDER BY created_at DESC"
+        with self._lock:
+            rows = self._get_conn().execute(query, params).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["config"] = json.loads(d.get("config", "{}"))
+            result.append(d)
+        return result
+
+    def delete_signal_source(self, tenant_id: str, source_id: str) -> bool:
+        """Delete a signal source (cascades to raw_signals via FK)."""
+        with self._tx() as conn:
+            cur = conn.execute(
+                "DELETE FROM signal_sources WHERE tenant_id = ? AND source_id = ?",
+                (tenant_id, source_id),
+            )
+            return cur.rowcount > 0
+
+    # ── B-06: Raw Signals ───────────────────────────────────────────
+
+    def insert_raw_signal(
+        self,
+        tenant_id: str,
+        source_id: str,
+        metric_name: str,
+        value: float,
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        """Ingest a raw signal from a registered source."""
+        signal_id = f"rs_{uuid.uuid4().hex[:12]}"
+        with self._tx() as conn:
+            conn.execute(
+                """INSERT INTO raw_signals
+                   (signal_id, tenant_id, source_id, metric_name, value, metadata)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    signal_id,
+                    tenant_id,
+                    source_id,
+                    metric_name,
+                    value,
+                    json.dumps(metadata or {}),
+                ),
+            )
+        return signal_id
+
+    def get_raw_signals(
+        self,
+        tenant_id: str,
+        source_id: str | None = None,
+        metric_name: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """List raw signals with optional filtering."""
+        query = "SELECT * FROM raw_signals WHERE tenant_id = ?"
+        params: list[Any] = [tenant_id]
+        if source_id:
+            query += " AND source_id = ?"
+            params.append(source_id)
+        if metric_name:
+            query += " AND metric_name = ?"
+            params.append(metric_name)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        with self._lock:
+            rows = self._get_conn().execute(query, params).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["metadata"] = json.loads(d.get("metadata", "{}"))
+            result.append(d)
+        return result
+
+    def get_raw_signal_stats(self, tenant_id: str) -> dict[str, Any]:
+        """Aggregate stats for raw signals (used by weekly review)."""
+        with self._lock:
+            row = (
+                self._get_conn()
+                .execute(
+                    """SELECT
+                         COUNT(*) as total,
+                         COUNT(DISTINCT source_id) as sources,
+                         COUNT(DISTINCT metric_name) as metrics,
+                         MAX(created_at) as last_signal_at
+                       FROM raw_signals
+                       WHERE tenant_id = ?""",
+                    (tenant_id,),
+                )
+                .fetchone()
+            )
+        if row is None:
+            return {"total": 0, "sources": 0, "metrics": 0, "last_signal_at": None}
+        return dict(row)
 
     def get_audit_log(self, tenant_id: str, limit: int = 100) -> list[dict[str, Any]]:
         # M2 fix: validate limit — must be int, coerce negatives to "all rows" (SQLite LIMIT -1)
@@ -1094,6 +1291,78 @@ class AgentOSStore:
         if self._conn is not None:
             self._conn.close()
             self._conn = None
+
+    # ── B-09: Improvement outcomes (feedback loop) ─────────────────
+
+    def record_outcome(
+        self,
+        tenant_id: str,
+        proposal_id: str,
+        experiment_id: str,
+        metric_name: str,
+        verdict: str,
+        delta: float,
+        baseline_value: float,
+        candidate_value: float,
+    ) -> str:
+        """Record the outcome of an experiment verdict."""
+        outcome_id = f"out_{uuid.uuid4().hex[:12]}"
+        with self._tx() as conn:
+            conn.execute(
+                """INSERT INTO improvement_outcomes
+                   (outcome_id, tenant_id, proposal_id, experiment_id,
+                    metric_name, verdict, delta, baseline_value,
+                    candidate_value, applied_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+                (
+                    outcome_id,
+                    tenant_id,
+                    proposal_id,
+                    experiment_id,
+                    metric_name,
+                    verdict,
+                    delta,
+                    baseline_value,
+                    candidate_value,
+                ),
+            )
+        return outcome_id
+
+    def get_outcomes(
+        self, tenant_id: str, metric_name: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        """Get outcomes for a tenant, optionally filtered by metric."""
+        query = "SELECT * FROM improvement_outcomes WHERE tenant_id = ?"
+        params: list[Any] = [tenant_id]
+        if metric_name:
+            query += " AND metric_name = ?"
+            params.append(metric_name)
+        query += " ORDER BY applied_at DESC LIMIT ?"
+        params.append(limit)
+        with self._lock:
+            rows = self._get_conn().execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_outcome_stats(self, tenant_id: str) -> dict[str, Any]:
+        """Aggregate outcome stats for a tenant (used by weekly report)."""
+        with self._lock:
+            row = (
+                self._get_conn()
+                .execute(
+                    """SELECT
+                         COUNT(*) as total,
+                         COALESCE(SUM(CASE WHEN verdict = 'promoted' THEN 1 ELSE 0 END), 0) as promoted,
+                         COALESCE(SUM(CASE WHEN verdict = 'rolled_back' THEN 1 ELSE 0 END), 0) as rolled_back,
+                         COALESCE(SUM(CASE WHEN verdict = 'rejected' THEN 1 ELSE 0 END), 0) as rejected,
+                         COALESCE(AVG(delta), 0.0) as avg_delta,
+                         MAX(applied_at) as last_outcome_at
+                       FROM improvement_outcomes
+                       WHERE tenant_id = ?""",
+                    (tenant_id,),
+                )
+                .fetchone()
+            )
+        return dict(row)
 
 
 # Module-level singleton for process-wide use

@@ -17,6 +17,7 @@ from typing import Any
 
 from .promotion import (
     MIN_SIGNALS_BEFORE_AUTO_PROMOTE,
+    OutcomeCallback,
     PromotionEngine,
     Proposal,
     TunerIncumbent,
@@ -43,6 +44,7 @@ class AutoTriggerLoop:
         tenant_id: str = "default",
         incumbent: TunerIncumbent | None = None,
         higher_is_better: bool | None = None,
+        outcome_recorder: OutcomeCallback | None = None,
     ) -> None:
         self._detector = signal_detector
         self._store = store
@@ -50,8 +52,9 @@ class AutoTriggerLoop:
         self._incumbent = incumbent
         self._higher_is_better = higher_is_better
         self._engine: PromotionEngine | None = None
+        self._outcome_recorder = outcome_recorder
         if incumbent is not None:
-            self._engine = PromotionEngine(incumbent=incumbent, store=store, tenant_id=tenant_id)
+            self._engine = PromotionEngine(incumbent=incumbent, store=store, tenant_id=tenant_id, outcome_recorder=outcome_recorder)
         # Register the auto-trigger callback
         self._detector._auto_trigger = self._on_signal_insight
 
@@ -149,6 +152,7 @@ class AutoTriggerLoop:
                 incumbent=self._incumbent,
                 store=store,
                 tenant_id=tenant_id,
+                outcome_recorder=self._outcome_recorder,
             )
 
         # Rewire engine with the proposal so the ship callable can update

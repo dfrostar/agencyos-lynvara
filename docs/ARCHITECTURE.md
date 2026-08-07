@@ -253,7 +253,11 @@ agent_os/
 ├── postgres.py               # PostgreSQL client
 ├── adversarial.py            # Adversarial QA
 ├── tenant.py                 # Tenant registry
-└── signals_log.py            # Signals log
+├── signals_log.py            # Signals log
+├── behavior_learner.py       # Phase 4: outcome-driven parameter adjustment
+├── proactive_explorer.py     # Phase 4: gap detection + adversarial probing
+├── self_improvement.py       # Phase 4: engine wiring + background threads
+└── weekly_self_improvement.py # Phase 4: WoW delta report
 ```
 
 ---
@@ -263,9 +267,9 @@ agent_os/
 | Phase | Level | Deliverable | Status | Est. Effort |
 |-------|-------|-------------|--------|-------------|
 | 1 | 4+5 | Server, core modules, webhook ingestion | ✅ **DONE** | 7.5h |
-| 2 | 5 | Wire webhook worker, connect signal sources, feedback loop, weekly review | 🔴 TODO | 10h |
-| 3 | 4 | Business health dashboard | 🔴 TODO | 4h |
-| 4 | 9 | Self-improving engine (full), self-improvement report | 🔴 TODO | 12h |
+| 2 | 5+6 | Wire webhook worker, connect signal sources, feedback loop, weekly review | ✅ **DONE** | 10h |
+| 3 | 4 | Business health dashboard | ✅ **DONE** | 4h |
+| 4 | 9 | Self-improving engine (full), self-improvement report, L10 architecture | ✅ **DONE** | 12h |
 | 5 | 7 | Message bus, role base, detector/correlator/evolver roles, coordinator | 🔴 TODO | 8h |
 | 6 | 8 | Outreach department loop, engagement department loop | 🔴 TODO | 6h |
 
@@ -273,11 +277,19 @@ agent_os/
 
 ## 8. Out of Scope (Correctly)
 
-- **Level 10 (Autonomous Business):** Not achievable or desirable. Human oversight is a feature.
+- **Level 10 (Autonomous Business):** Not achievable or desirable without significant prerequisites. See `docs/ARCHITECTURE-L10.md` for the full L10 path, prerequisites, safety boundaries, and honest viability assessment.
 - **Level 3 (Claude Code integration):** Hermes handles this. AgencyOS should not duplicate.
 - **Multi-engine consensus:** No need for 3-model agreement in internal tooling.
 - **External action execution:** AgencyOS proposes actions but does not execute them externally.
 
 ---
 
-*Architecture validated against the 10-Level Framework. Phase 1 complete. Next: Phase 2 (Automation Pipeline).*
+## 9. L10 Path
+
+Level 10 (autonomous business operations) is **deferred** pending:
+- L9 proven on real data (6+ months of outcomes)
+- L7 (specialized roles) and L8 (orchestrated departments) stable
+- Legal wrapper (LLC) and financial authority integration
+- Immutable safety architecture
+
+See `docs/ARCHITECTURE-L10.md` for the complete design.

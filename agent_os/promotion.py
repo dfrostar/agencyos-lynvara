@@ -29,8 +29,11 @@ from enum import Enum
 from typing import Any
 
 from .experiment import ExperimentResult, ExperimentRunner, ExperimentStatus
+from .behavior_learner import BehaviorLearner
 
 log = logging.getLogger(__name__)
+
+OutcomeCallback = Callable[[str, ExperimentResult], None]
 
 
 class PromotionStatus(str, Enum):
@@ -218,6 +221,7 @@ class PromotionEngine:
         signal_count: int = 0,
         store: Any = None,
         tenant_id: str = "default",
+        outcome_recorder: OutcomeCallback | None = None,
     ) -> None:
         self._runner = ExperimentRunner(
             promote_threshold_pct=auto_promote_threshold * 100,
@@ -230,6 +234,7 @@ class PromotionEngine:
         self._signal_count = signal_count
         self._store = store
         self._tenant_id = tenant_id
+        self._outcome_recorder = outcome_recorder
 
         if incumbent is not None and proposal is not None:
             self._ship_callable = _tuner_incumbent_ship_callable(incumbent, proposal)
@@ -333,6 +338,9 @@ class PromotionEngine:
         if self._store is not None:
             self._store.insert_promotion(self._tenant_id, record.to_dict())
 
+        # B-09: Record outcome for behavior learning
+        self._record_outcome(result)
+
     def _rollback(self, result: ExperimentResult) -> None:
         record = PromotionRecord(
             promotion_id=f"prom_{uuid.uuid4().hex[:12]}",
@@ -366,6 +374,23 @@ class PromotionEngine:
 
         if self._store is not None:
             self._store.insert_promotion(self._tenant_id, record.to_dict())
+
+        # B-09: Record outcome for behavior learning
+        self._record_outcome(result)
+
+    def _record_outcome(self, result: ExperimentResult) -> None:
+        """Record outcome via the configured callback (fail-open)."""
+        if self._outcome_recorder is None:
+            log.warning(
+                "Outcome recorder is None — dropping outcome for experiment %s (metric=%s)",
+                result.experiment_id,
+                result.metric_name,
+            )
+            return
+        try:
+            self._outcome_recorder(self._tenant_id, result)
+        except Exception:
+            log.exception("Outcome recording failed (non-blocking)")
 
     def get_history(self) -> list[PromotionRecord]:
         return list(reversed(self._history))

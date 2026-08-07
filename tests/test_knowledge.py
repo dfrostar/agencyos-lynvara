@@ -13,7 +13,6 @@ from agent_os.server import AgentOSHandler, create_default_store, create_app
 
 @pytest.fixture
 def server(tmp_path):
-    """Start a test server with routes."""
     os.environ["NEURALMIND_AGENTOS_DIR"] = str(tmp_path)
     store = create_default_store()
     app_routes = create_app(store, None)
@@ -25,12 +24,10 @@ def server(tmp_path):
     t.start()
 
     yield f"http://127.0.0.1:{port}"
-
     srv.shutdown()
 
 
 def _create_session(server_url, tenant_id):
-    """Create a session for the given tenant, handling existing tenants."""
     import urllib.request
     body = json.dumps({"tenant_id": tenant_id, "name": tenant_id.title(), "admin_email": f"@{tenant_id}.com"}).encode()
     req = urllib.request.Request(
@@ -71,7 +68,7 @@ def _post(server_url, path, body, headers=None, auto_auth=True):
         return 500, {"error": str(e)}
 
 
-def _get(server_url, path, body=None, headers=None, auto_auth=True):
+def _get(server_url, path, headers=None, auto_auth=True):
     import urllib.request
     import urllib.error
     if auto_auth and not headers:
@@ -79,11 +76,7 @@ def _get(server_url, path, body=None, headers=None, auto_auth=True):
     hdrs = {}
     if headers:
         hdrs.update(headers)
-    data = None
-    if body:
-        data = json.dumps(body).encode()
-        hdrs["Content-Type"] = "application/json"
-    req = urllib.request.Request(f"{server_url}{path}", data=data, headers=hdrs)
+    req = urllib.request.Request(f"{server_url}{path}", headers=hdrs)
     try:
         resp = urllib.request.urlopen(req)
         return resp.status, json.loads(resp.read())
@@ -237,7 +230,6 @@ class TestKnowledgeSearch:
             "title": "Database Indexing",
             "content": "How to index SQL tables",
         })
-        # GET search with query param
         import urllib.request
         import urllib.error
         headers = _auth_headers(server)

@@ -12,6 +12,7 @@ from .api import create_agent_os_routes
 from .auth import AuthContext, SessionStore, extract_bearer_token
 from .auto_trigger import AutoTriggerLoop
 from .correlator import CauseType, Insight, RootCauseCorrelator
+from .dashboard import create_dashboard_routes
 from .experiment import ExperimentResult, ExperimentRunner, ExperimentStatus
 from .governance import AgentOSGovernance, Permission, Role, require_permission
 from .promotion import (
@@ -35,6 +36,7 @@ from .proposal_store import (
 from .proposal_store import (
     history as proposal_history,
 )
+from .signal_sources import create_signal_source_routes
 from .signals import SeverityLevel, Signal, SignalDetector
 from .signals_log import (
     get_insights,
@@ -51,6 +53,7 @@ from .tenant import (
     resolve_tenant,
     validate_tenant_id,
 )
+from .weekly_review import create_weekly_review_routes
 
 __all__ = [
     "Tenant",

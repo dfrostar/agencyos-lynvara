@@ -5,7 +5,7 @@
 **Date:** 2026-08-07
 **Owner:** Darren Frost (Cheval-Volant, LLC)
 **Repo:** `/home/dtfrost/agencyOS/`
-**Status:** Phase 1 Complete | Phase 2 In Progress
+**Status:** Phase 1-4 Complete | Phase 5 In Progress
 
 ---
 
@@ -61,7 +61,11 @@ agent_os/
 ├── postgres.py               # PostgreSQL client (existing)
 ├── adversarial.py            # Adversarial QA (existing)
 ├── tenant.py                 # Tenant registry (existing)
-└── signals_log.py            # Signals log (existing)
+├── signals_log.py            # Signals log (existing)
+├── behavior_learner.py       # Phase 4: outcome-driven parameter adjustment
+├── proactive_explorer.py     # Phase 4: gap detection + adversarial probing
+├── self_improvement.py       # Phase 4: engine wiring + background threads
+├── weekly_self_improvement.py # Phase 4: WoW delta report
 ├── roles/
 │   ├── __init__.py
 │   ├── base.py               # NEW: AgentRole abstract class
@@ -1386,15 +1390,124 @@ GET /api/agent-os/departments/outreach/stats
 
 ---
 
+## 8. Phase 4: Self-Improving Engine
+
+### 8.1 BehaviorLearner — Outcome-Driven Parameter Adjustment
+
+**File:** `agent_os/behavior_learner.py` (282 lines)
+
+The BehaviorLearner analyzes experiment outcomes and adjusts system parameters:
+
+| Parameter | Table | Column | Adjustment Rule |
+|-----------|-------|--------|-----------------|
+| `lambda_threshold` | `signal_states` | `lambda_threshold` | Rollback rate > 80% → +0.5 (less sensitive). Promotion rate > 80% → -0.5 (more sensitive). |
+| `cooldown_seconds` | `signal_states` | `cooldown_seconds` | Burst signals (>5 in 60s) → ×1.5 (max 3600s). Sparse (<1/day) → ÷1.5 (min 10s). |
+| Auto-promote threshold | In-memory (`_category_auto_promote`) | — | Success rate > 75% → -1 (min 2). Success rate < 25% → +1 (max 10). |
+
+**Safety boundaries (hardcoded):**
+- `_LAMBDA_MIN = 1.0`, `_LAMBDA_MAX = 20.0`
+- `_COOLDOWN_MIN = 10.0`, `_COOLDOWN_MAX = 3600.0`
+- `_MIN_OUTCOMES_FOR_ADJUSTMENT = 5`
+
+**Thread safety:** `threading.Lock` on `on_outcome()` and `adjust_cooldowns()`.
+
+### 8.2 ProactiveExplorer — Gap Detection + Adversarial Probing
+
+**File:** `agent_os/proactive_explorer.py` (282 lines)
+
+The ProactiveExplorer identifies unexplored areas and proposes experiments:
+
+| Detection Type | Method | Trigger | Endpoint |
+|----------------|--------|---------|----------|
+| Stale incumbents | `_detect_stale_incumbents()` | No experiments in 7+ days | `_propose_stale_experiments()` |
+| Metric gaps | `_detect_metric_gaps()` | Tracked but never experimented | `_propose_gap_experiments()` |
+| Adversarial edges | `_probe_edges()` | Uses `generate_adversarial_query()` | `_propose_adversarial_experiments()` |
+
+**Adversarial query generation:** `adversarial.py` builds a hypothesis from `row['value']`, `row['metric_name']`, `row['tag']`, and `row['history']`. The hypothesis is f-string interpolated into the query template.
+
+**SQL injection risk:** `metric_name` and `tag` are stored in the database (user-controlled via signal ingestion). These are interpolated into the hypothesis string (not SQL), but the hypothesis is later stored in the `adversarial_queries` table. **No SQL injection vector** — all SQL uses parameterized queries.
+
+### 8.3 SelfImprovementEngine — Server Wiring
+
+**File:** `agent_os/self_improvement.py` (251 lines)
+
+Orchestrates AutoTriggerLoop + BehaviorLearner + ProactiveExplorer:
+
+- `start()` launches 2 background daemon threads:
+  - `_behavior_loop()` — runs `adjust_cooldowns()` every hour
+  - `_explorer_loop()` — runs `run_cycle()` daily
+- `stop()` sets `self._enabled = False`
+- `get_status()` returns engine state
+- `trigger_explorer()` manually triggers a proactive exploration cycle
+
+**Endpoints:**
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/api/agent-os/engine/status` | Bearer token | Engine state |
+| POST | `/api/agent-os/engine/trigger` | Bearer token | Manually trigger explorer |
+| GET | `/api/agent-os/engine/outcomes` | Bearer token | Recent outcomes |
+| GET | `/api/agent-os/engine/parameters` | Bearer token | Current thresholds |
+
+**Auth pattern:** `_resolve_tenant_id(body, headers)` extracts bearer <REDACTED>, validates via `SessionStore.get_session()`. If not authenticated → 401.
+
+**Important:** `create_app()` requires an explicit `self_improvement_engine` parameter. If `None`, engine routes are empty `{}` (safe default — endpoints return 404).
+
+### 8.4 Weekly Self-Improvement Report
+
+**File:** `agent_os/weekly_self_improvement.py` (257 lines)
+
+Generates a week-over-week delta report. Uses raw SQLite connection for aggregation queries.
+
+**Endpoints:**
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/api/agent-os/review/self-improvement` | Bearer token | Full WoW delta report |
+| GET | `/api/agent-os/review/self-improvement/summary` | Bearer token | Condensed summary |
+
+**Report includes:**
+- `experiments.run_this_week`, `run_last_week`, `delta_pct`, `promotion_rate`, `avg_delta`
+- `tuner_changes[]` — per-metric promotion/rollback history
+- `threshold_adjustments[]` — non-default lambda/cooldown values
+- `proactive_experiments` — proposed, run, promoted counts
+- `outcome_stats` — total, promoted, rolled_back, rejected, avg_delta
+
+### 8.5 Outcome Tracking Schema
+
+```sql
+CREATE TABLE improvement_outcomes (
+    outcome_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    proposal_id TEXT NOT NULL,
+    experiment_id TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    verdict TEXT NOT NULL CHECK(verdict IN ('promoted', 'rolled_back', 'rejected')),
+    delta REAL NOT NULL,
+    baseline_value REAL NOT NULL,
+    candidate_value REAL NOT NULL,
+    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_outcomes_tenant ON improvement_outcomes (tenant_id);
+CREATE INDEX idx_outcomes_metric ON improvement_outcomes (tenant_id, metric_name);
+CREATE INDEX idx_outcomes_verdict ON improvement_outcomes (tenant_id, verdict);
+CREATE INDEX idx_outcomes_applied ON improvement_outcomes (tenant_id, applied_at);
+```
+
+---
+
 ## 9. Deployment & Operations
 
 ### 9.1 Migration Path
 
-1. **Phase 1:** Deploy webhook ingestion (no impact on existing features)
-2. **Phase 2:** Deploy message bus + coordinator (internal refactor)
-3. **Phase 3:** Wrap existing detector/correlator as roles
-4. **Phase 4:** Deploy Evolver role
-5. **Phase 5:** Enable department orchestration (tenant-by-tenant)
+1. **Phase 1:** Deploy webhook ingestion (no impact on existing features) ✅
+2. **Phase 2:** Wire webhook worker, connect signal sources, feedback loop, weekly review ✅
+3. **Phase 3:** Deploy business health dashboard ✅
+4. **Phase 4:** Deploy self-improving engine, self-improvement report, L10 architecture ✅
+5. **Phase 5:** Deploy message bus + coordinator (internal refactor) 🔴 TODO
+6. **Phase 6:** Wrap existing detector/correlator as roles 🔴 TODO
+7. **Phase 7:** Deploy Evolver role 🔴 TODO
+8. **Phase 8:** Enable department orchestration (tenant-by-tenant) 🔴 TODO
 
 ### 9.2 Rollback Plan
 
