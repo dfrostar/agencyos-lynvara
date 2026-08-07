@@ -5,20 +5,20 @@
   "source_schema_version": 2,
   "coverage": "coarse",
   "built_at_commit": "",
-  "created_at": "2026-08-04T23:40:04.739165+00:00",
-  "nodes": 736,
-  "edges": 1210,
-  "clusters": 7,
-  "synapses": 0,
+  "created_at": "2026-08-06T23:23:41.962188+00:00",
+  "nodes": 991,
+  "edges": 1501,
+  "clusters": 19,
+  "synapses": 1193,
   "node_kinds": {
-    "file": 24,
-    "document": 193,
-    "symbol": 211,
-    "function": 308
+    "file": 28,
+    "document": 408,
+    "symbol": 216,
+    "function": 339
   },
   "languages": {
-    "python": 720,
-    "markdown": 16
+    "python": 783,
+    "markdown": 208
   },
   "validation": {
     "ok": true,

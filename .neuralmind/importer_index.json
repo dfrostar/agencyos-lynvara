@@ -9,14 +9,13 @@
   ],
   "agent_os/api.py": [
     "agent_os/governance.py",
-    "agent_os/tenant.py",
     "agent_os/signals_log.py",
-    "agent_os/signals.py",
     "agent_os/server.py",
     "tests/test_agent_os_api.py"
   ],
   "agent_os/auth.py": [
-    "agent_os/governance.py"
+    "agent_os/governance.py",
+    "agent_os/server.py"
   ],
   "agent_os/correlator.py": [
     "agent_os/governance.py",
@@ -30,6 +29,10 @@
     "tests/test_agent_os_v2.py"
   ],
   "agent_os/engagements.py": [
+    "agent_os/api.py",
+    "agent_os/governance.py",
+    "agent_os/tenant.py",
+    "agent_os/signals_log.py",
     "agent_os/server.py"
   ],
   "agent_os/experiment.py": [
@@ -54,6 +57,7 @@
   ],
   "agent_os/promotion.py": [
     "agent_os/auto_trigger.py",
+    "agent_os/server.py",
     "agent_os/signals.py",
     "agent_os/store.py",
     "tests/test_agent_os.py"
@@ -75,12 +79,13 @@
   "agent_os/store.py": [
     "agent_os/auto_trigger.py",
     "agent_os/experiment.py",
-    "agent_os/signals.py",
     "agent_os/governance.py",
     "agent_os/postgres.py",
     "agent_os/promotion.py",
     "agent_os/proposal_store.py",
     "agent_os/server.py",
+    "agent_os/signals.py",
+    "agent_os/webhooks.py",
     "tests/test_agent_os_v2.py",
     "tests/test_feedback.py"
   ],
@@ -88,6 +93,9 @@
     "agent_os/governance.py",
     "agent_os/cli.py",
     "tests/test_agent_os.py"
+  ],
+  "agent_os/webhooks.py": [
+    "agent_os/server.py"
   ],
   "tests/test_agent_os_api.py": [
     "tests/test_feedback.py"
