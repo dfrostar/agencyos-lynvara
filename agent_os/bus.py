@@ -23,6 +23,7 @@ class Message:
         payload: dict[str, Any],
         from_role: str,
         to_role: str | None = None,
+        tenant_id: str = "default",
         message_id: str | None = None,
         created_at: str | None = None,
     ) -> None:
@@ -31,6 +32,7 @@ class Message:
         self.payload = payload
         self.from_role = from_role
         self.to_role = to_role  # None = broadcast
+        self.tenant_id = tenant_id
         self.created_at = created_at or datetime.now(timezone.utc).isoformat()
         self.status = "pending"
         self.consume_count = 0
@@ -42,6 +44,7 @@ class Message:
             "payload": json.dumps(self.payload),
             "from_role": self.from_role,
             "to_role": self.to_role,
+            "tenant_id": self.tenant_id,
             "created_at": self.created_at,
             "status": self.status,
             "consume_count": self.consume_count,
@@ -54,6 +57,7 @@ class Message:
             payload=json.loads(data["payload"]),
             from_role=data["from_role"],
             to_role=data.get("to_role"),
+            tenant_id=data.get("tenant_id", "default"),
             message_id=data["message_id"],
             created_at=data.get("created_at"),
         )
@@ -86,14 +90,14 @@ class MessageBus:
         """Publish a message to the bus."""
         with self._lock:
             self._store.insert_bus_message(message.to_dict())
-            # Notify synchronous subscribers
-            topic_subs = self._subscribers.get(message.topic, [])
-            broadcast_subs = self._subscribers.get("*", [])
-            for cb in topic_subs + broadcast_subs:
-                try:
-                    cb(message)
-                except Exception:
-                    log.exception("Subscriber callback failed for topic %s", message.topic)
+            topic_subs = list(self._subscribers.get(message.topic, []))
+            broadcast_subs = list(self._subscribers.get("*", []))
+        # Notify outside the lock to prevent deadlock
+        for cb in topic_subs + broadcast_subs:
+            try:
+                cb(message)
+            except Exception:
+                log.exception("Subscriber callback failed for topic %s", message.topic)
 
     def subscribe(self, topic: str, callback: Callable[[Message], None]) -> None:
         """Subscribe to a topic. Use '*' for all topics."""
@@ -103,10 +107,10 @@ class MessageBus:
             self._subscribers[topic].append(callback)
 
     def consume(
-        self, topic: str, role: str, limit: int = 10
+        self, topic: str, role: str, tenant_id: str | None = None, limit: int = 10
     ) -> list[dict[str, Any]]:
-        """Consume pending messages for a topic + role (or broadcast)."""
-        messages = self._store.consume_bus_messages(topic, role, limit)
+        """Consume pending messages for a topic + role + tenant (or broadcast)."""
+        messages = self._store.consume_bus_messages(topic, role, tenant_id, limit)
         return _parse_payload(messages)
 
     def acknowledge(self, message_id: str) -> None:

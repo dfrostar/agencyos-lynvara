@@ -66,6 +66,7 @@ class TestDetectorRole:
             payload={"metric_name": "test.metric", "value": 100.0},
             from_role="webhook",
             to_role="detector",
+            tenant_id="test-tenant",
         )
         bus.publish(msg)
         # Give the role time to process

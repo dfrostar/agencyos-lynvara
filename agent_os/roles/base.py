@@ -73,6 +73,13 @@ class AgentRole:
     def _run_loop(self) -> None:
         """Main loop: consume messages, process, publish results."""
         import time
+        poll_interval = self._config.get("poll_interval", 1.0)
+        try:
+            poll_interval = float(poll_interval)
+        except (TypeError, ValueError):
+            poll_interval = 1.0
+        poll_interval = max(0.1, min(poll_interval, 300.0))  # clamp [0.1, 300]
+
         while self._enabled:
             try:
                 self._poll()
@@ -80,19 +87,20 @@ class AgentRole:
             except Exception:
                 log.exception("Role %s error", self.ROLE_NAME)
                 self._store.update_role_heartbeat(self._role_id, "error")
-            time.sleep(self._config.get("poll_interval", 1.0))
+            time.sleep(poll_interval)
 
     def _poll(self) -> None:
         """Override in subclasses to implement role-specific logic."""
         raise NotImplementedError
 
-    def publish(self, topic: str, payload: dict[str, Any], to_role: str | None = None) -> None:
+    def publish(self, topic: str, payload: dict[str, Any], to_role: str | None = None, tenant_id: str | None = None) -> None:
         """Publish a message to the bus."""
         msg = Message(
             topic=topic,
             payload=payload,
             from_role=self.ROLE_NAME,
             to_role=to_role,
+            tenant_id=tenant_id or self._tenant_id,
         )
         self._bus.publish(msg)
         self._store.update_role_counters(self._role_id, messages_processed=1)

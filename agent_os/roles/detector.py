@@ -38,10 +38,10 @@ class DetectorRole(AgentRole):
 
     def _poll(self) -> None:
         """Consume metric_value messages and push to detector."""
-        messages = self._bus.consume("metric_value", self.ROLE_NAME)
+        messages = self._bus.consume("metric_value", self.ROLE_NAME, tenant_id=self._tenant_id)
         for msg in messages:
             try:
-                payload = msg.payload
+                payload = msg["payload"]
                 signal = self._detector.push(
                     metric_name=payload["metric_name"],
                     value=float(payload["value"]),
@@ -52,8 +52,9 @@ class DetectorRole(AgentRole):
                         topic="signal",
                         payload=signal.to_dict(),
                         to_role="correlator",
+                        tenant_id=self._tenant_id,
                     )
-                self._bus.acknowledge(msg.message_id)
+                self._bus.acknowledge(msg["message_id"])
             except Exception:
-                log.exception("Detector failed on message %s", msg.message_id)
+                log.exception("Detector failed on message %s", msg.get("message_id"))
                 self._store.update_role_counters(self._role_id, messages_failed=1)

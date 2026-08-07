@@ -8,9 +8,9 @@
     },
     {
       "path": "agent_os/auto_trigger.py",
-      "mtime": 1786049438.9133599,
-      "content_hash": "0e3578d235db3056d581efd25c3842607a8e159f79e4f2fc18368250c8b806d9",
-      "extracted_at": 1786124404.2088706
+      "mtime": 1786126128.3193598,
+      "content_hash": "7b9131bd5c90abac5e23822047767d8e34cc13ac9d4527670bc250a581fb9fef",
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/engagements.py",
@@ -20,51 +20,51 @@
     },
     {
       "path": "agent_os/store.py",
-      "mtime": 1786123193.3212667,
-      "content_hash": "c46e1365016a6f80b121149b7da528c2becc84d4958ca7afcede2c6d29c09a2c",
-      "extracted_at": 1786124404.2088706
+      "mtime": 1786133807.4237368,
+      "content_hash": "22af9551f2d8a8ab41a79d6399ba3ea49dcc63582d3a85971f7999fa7d5b0e9a",
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "tests/test_agent_os_api.py",
       "mtime": 1786072376.5361803,
       "content_hash": "740d072618d489ad40cb01d2525c06f2e781cbd0502244bd5244037809e86848",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/cli.py",
       "mtime": 1786048684.87654,
       "content_hash": "9c2f2e86236c6240876dda601883cd0235d11cad791f557efcd9e25932ab738b",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "tests/test_agent_os.py",
       "mtime": 1786048684.8835402,
       "content_hash": "4b522f8fe055709403ddf79d9ae9c0b90f6b120ef1a6136fe2c9219b5c7b8ff4",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/server.py",
-      "mtime": 1786124008.5731015,
-      "content_hash": "c33bd14ae44d258ba280ac61ba28e870d8b765aed7aae56fd18863e2b5151e96",
-      "extracted_at": 1786124404.2088706
+      "mtime": 1786133234.1049464,
+      "content_hash": "d7fe9014f710ac1d4ee321786a486d8b0882368373c358866dd5ecb2259ee33b",
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/signals.py",
       "mtime": 1786049691.928958,
       "content_hash": "731e5b50d599e3f255130f3e0f75f927e2f6f8509464c3f56886fdeab6f9f1db",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/correlator.py",
       "mtime": 1786048684.87654,
       "content_hash": "720f18e1cb60b669f6934b7bd70ba0c3e78929d9a2d250586d4cdfe09d17ae58",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/proposal_store.py",
       "mtime": 1786048684.87754,
       "content_hash": "17aaf2747eddc180250abbfd0b61d0e3fe071ced5aaa27908ac3f21195085bae",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/adversarial.py",
@@ -76,7 +76,7 @@
       "path": "agent_os/signals_log.py",
       "mtime": 1786048684.87754,
       "content_hash": "3159edcac80c50c84e5df76e90792af40e6695eefcd440b1fc7da3755c4afead",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/__init__.py",
@@ -88,19 +88,19 @@
       "path": "agent_os/api.py",
       "mtime": 1786073407.0644329,
       "content_hash": "74726e1a94d8d2e13a5ec5cd6e07969da154879d0fc432d81a83e56171d93db4",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "tests/test_agent_os_v2.py",
       "mtime": 1786048684.8835402,
       "content_hash": "04d060257140364809fb7d40e72532bb7970b2212c5fb79871f28adda9acbb6a",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "tests/test_feedback.py",
       "mtime": 1786057082.248785,
       "content_hash": "6915e557b42803fc20c60b541fd5e5908a2626ebedd46d6190a301318b0a78f2",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/feedback.py",
@@ -112,61 +112,61 @@
       "path": "agent_os/tenant.py",
       "mtime": 1786048684.87854,
       "content_hash": "fe69b89fd3e3ebfe5a09c4c948dab003c7ad143f7685579bb71ed03e708b2d66",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/experiment.py",
       "mtime": 1786049562.06679,
       "content_hash": "3bb06704fb5aed478c123d96f6100e772df5365cbed608f844472e7b51c9cb60",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/postgres.py",
       "mtime": 1786048684.87754,
       "content_hash": "76655399e4005494d1f9f1c270797d2dcdc19a57bcea797742b89a5a16d90d62",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/promotion.py",
-      "mtime": 1786049552.4716787,
-      "content_hash": "554d8dca27d6c585d906273bb14febb198d6da9045c831bb8919f39854ed0ca4",
-      "extracted_at": 1786124404.2088706
+      "mtime": 1786131118.8907123,
+      "content_hash": "57e5d839347147d26a39fae5a57e8c42bf39e3d0bfc814aa7f848d910202f0cd",
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/auth.py",
       "mtime": 1786071889.6612926,
       "content_hash": "a9cd70841a573a946c13d09ea79e1f954774baa3bd31940182509c78b3bc4965",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/governance.py",
       "mtime": 1786071893.1623335,
       "content_hash": "c7df134ac2ddab8d13ca18427f3f793d4dcb14f7932f54b08847fffbf76eb9c3",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/sources/custom.py",
       "mtime": 1786048684.87754,
       "content_hash": "c845d6f9e814297655febbd75751556a2ef41e6b656b46579eccb4428915a746",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/sources/github.py",
       "mtime": 1786048684.87754,
       "content_hash": "fdedc82fb670dbec0f75ddd2c9423c946fc4e2288d27cd262d15c5ea0c51926f",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/webhooks.py",
       "mtime": 1786071891.579315,
       "content_hash": "1d99f987a53ba7b67bd5b497d40e30418f325baee827e891a140a228009182ad",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/sources/stripe.py",
       "mtime": 1786048684.87754,
       "content_hash": "a40396028f8d1584a8aaa6ae1a60841d9cc5b668f3d0fffbdff0467e2e986768",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/knowledge.py",
@@ -178,13 +178,13 @@
       "path": "tests/test_finance.py",
       "mtime": 1786076351.9862487,
       "content_hash": "2bacfed6b29b32ab56cec89803ddb4f03da5bc873a4388557d33f9f278828e2b",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "tests/test_knowledge.py",
       "mtime": 1786076413.0884993,
       "content_hash": "bb8b3edd200fdca518106c59488742c7b6d0ba2d19defcde768eadb3ad93a18d",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/finance.py",
@@ -196,13 +196,13 @@
       "path": "tests/test_server.py",
       "mtime": 1786073351.8808503,
       "content_hash": "85489ec7e8ac2766673f6b3ad1ddd51526cafa17453e12440315b028dfacd731",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "tests/test_phase2.py",
       "mtime": 1786123587.6455317,
       "content_hash": "bd9361b1993205c42863d190effa223f0584d101208f54795a1c9e72fa8b2672",
-      "extracted_at": 1786124404.2088706
+      "extracted_at": 1786136314.2406483
     },
     {
       "path": "agent_os/dashboard.py",
@@ -227,7 +227,109 @@
       "mtime": 1786123261.0999691,
       "content_hash": "35503e5e0e4ced9e60046fae2a7d26f35742cc2664b79626bbf56b896c4ea16b",
       "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "agent_os/behavior_learner.py",
+      "mtime": 1786131109.312595,
+      "content_hash": "bf48d70f78502764c3a3ea5494cd53d7b0563a7ba4287452fe4464874c01fefa",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/roles/base.py",
+      "mtime": 1786133002.7440653,
+      "content_hash": "60ea1dc8db76b19fe15fe18e9d7b65e5199cf35f8841915a4cc62835845533af",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/departments/outreach.py",
+      "mtime": 1786133129.4496446,
+      "content_hash": "ddb54063c9d6f27caa028f27ce0acf77d9aaf37b51591f7c621e221ab02e8d7e",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "tests/test_phase5_bus.py",
+      "mtime": 1786133929.1162179,
+      "content_hash": "e1605242c30b57470b4f066a18b9478591d4e23229157b6b9e95bddcc5bc27e8",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "tests/test_phase5_roles.py",
+      "mtime": 1786133672.1844702,
+      "content_hash": "c169b6befebb61dbaaf49544d5679b7bb8f73a8901d0e19acca15e50f41bf091",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/roles/evolver.py",
+      "mtime": 1786133060.8197896,
+      "content_hash": "a2f36b20505697bc85565dea67532a779b0fdda21ab2f91017a93f093c6211e0",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/roles/detector.py",
+      "mtime": 1786133018.190258,
+      "content_hash": "8d2bfc496c1386b0bc43e4be97befdffa91d4fc4a361cf9b12c2de68f7d353df",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/bus.py",
+      "mtime": 1786133788.8366818,
+      "content_hash": "0e20a843a8e88d006e81d6f55d0f7d5b088491a9056ed315cc60be995dffed63",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/roles/correlator.py",
+      "mtime": 1786133042.5295615,
+      "content_hash": "7728862b8f2fefe096831233efcac69d81268aea902168c6d2b7bb11c9960b0b",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/departments/engagements.py",
+      "mtime": 1786133146.7438598,
+      "content_hash": "31d5c1e572d72cb6797c1f1140dd9b697b08d8876f096086b697ef14afc5b052",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/weekly_self_improvement.py",
+      "mtime": 1786126795.6298816,
+      "content_hash": "cb72b32a39d38449c2f4ee808be77f553babc28ee679cc2c64149eca696a9f24",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/self_improvement.py",
+      "mtime": 1786131130.4918547,
+      "content_hash": "8b00f36b5da019d2c45b675424f2f72e1de0abf1a60fb178491e6214d53668a2",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/roles/coordinator.py",
+      "mtime": 1786133304.0248148,
+      "content_hash": "6ca8890c4787ed4b2c70a1b81fcb1fdc0b3b1c0e43b7fbbe8a2aaa1f2f31fac7",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "tests/test_phase3.py",
+      "mtime": 1786124803.9715624,
+      "content_hash": "337001ad9dd6bfbdbc6d7212d7ebdd71f14829394a7035dcb6825765b198e322",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "tests/test_phase4.py",
+      "mtime": 1786126903.0352967,
+      "content_hash": "912e010319bf18ffef518bcd50e2056147f1cbdb294c182e8dbc2942f77c5127",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/proactive_explorer.py",
+      "mtime": 1786129539.2081852,
+      "content_hash": "4bbcac4adef198b78fb5af7b86dd5cd1c95a4d2fcecea6c577bea9efdd4a7802",
+      "extracted_at": 1786136314.2406483
+    },
+    {
+      "path": "agent_os/departments/base.py",
+      "mtime": 1786133108.8903885,
+      "content_hash": "d1f091ca863cbadd3807cc70e94ce8c85537fef1ee1ea2ee860e4f6e3ec5b9b4",
+      "extracted_at": 1786136314.2406483
     }
   ],
-  "saved_at": 1786124404.2118416
+  "saved_at": 1786136314.24496
 }

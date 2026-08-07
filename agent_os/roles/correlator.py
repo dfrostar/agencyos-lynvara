@@ -37,15 +37,15 @@ class CorrelatorRole(AgentRole):
 
     def _poll(self) -> None:
         """Consume signal messages and correlate."""
-        messages = self._bus.consume("signal", self.ROLE_NAME)
+        messages = self._bus.consume("signal", self.ROLE_NAME, tenant_id=self._tenant_id)
         for msg in messages:
             try:
-                payload = msg.payload
+                payload = msg["payload"]
                 signal_type = payload.get("type", "unknown")
 
                 # Only process anomaly signals
                 if signal_type != "anomaly":
-                    self._bus.acknowledge(msg.message_id)
+                    self._bus.acknowledge(msg["message_id"])
                     continue
 
                 from agent_os.signals import Signal
@@ -65,8 +65,9 @@ class CorrelatorRole(AgentRole):
                         topic="insight",
                         payload=insight.to_dict(),
                         to_role="evolver",
+                        tenant_id=self._tenant_id,
                     )
-                self._bus.acknowledge(msg.message_id)
+                self._bus.acknowledge(msg["message_id"])
             except Exception:
-                log.exception("Correlator failed on message %s", msg.message_id)
+                log.exception("Correlator failed on message %s", msg.get("message_id"))
                 self._store.update_role_counters(self._role_id, messages_failed=1)

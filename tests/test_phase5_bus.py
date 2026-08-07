@@ -51,43 +51,43 @@ class TestMessage:
 
 class TestMessageBus:
     def test_publish_and_consume(self, bus):
-        msg = Message(topic="signal", payload={"metric": "cpu"}, from_role="detector")
+        msg = Message(topic="signal", payload={"metric": "cpu"}, from_role="detector", tenant_id="test-tenant")
         bus.publish(msg)
-        messages = bus.consume("signal", "correlator")
+        messages = bus.consume("signal", "correlator", tenant_id="test-tenant")
         assert len(messages) == 1
         # Note: dict access, not attribute access
         assert messages[0]["payload"]["metric"] == "cpu"
 
     def test_consume_broadcast(self, bus):
-        msg = Message(topic="signal", payload={"x": 1}, from_role="detector", to_role=None)
+        msg = Message(topic="signal", payload={"x": 1}, from_role="detector", to_role=None, tenant_id="test-tenant")
         bus.publish(msg)
-        messages = bus.consume("signal", "any_role")
+        messages = bus.consume("signal", "any_role", tenant_id="test-tenant")
         assert len(messages) == 1
 
     def test_consume_targeted(self, bus):
-        msg = Message(topic="signal", payload={"x": 1}, from_role="detector", to_role="correlator")
+        msg = Message(topic="signal", payload={"x": 1}, from_role="detector", to_role="correlator", tenant_id="test-tenant")
         bus.publish(msg)
-        messages = bus.consume("signal", "correlator")
+        messages = bus.consume("signal", "correlator", tenant_id="test-tenant")
         assert len(messages) == 1
         # Other role should not receive
-        messages_other = bus.consume("signal", "evolver")
+        messages_other = bus.consume("signal", "evolver", tenant_id="test-tenant")
         assert len(messages_other) == 0
 
     def test_acknowledge(self, bus):
-        msg = Message(topic="signal", payload={"x": 1}, from_role="detector")
+        msg = Message(topic="signal", payload={"x": 1}, from_role="detector", tenant_id="test-tenant")
         bus.publish(msg)
-        messages = bus.consume("signal", "correlator")
+        messages = bus.consume("signal", "correlator", tenant_id="test-tenant")
         bus.acknowledge(messages[0]["message_id"])
         # Should not appear in pending
         pending = bus.get_pending("signal")
         assert len(pending) == 0
 
     def test_dead_letter_after_max_attempts(self, bus):
-        msg = Message(topic="signal", payload={"x": 1}, from_role="detector")
+        msg = Message(topic="signal", payload={"x": 1}, from_role="detector", tenant_id="test-tenant")
         bus.publish(msg)
         # Consume and acknowledge 3 times (simulating repeated failures)
         for _ in range(3):
-            messages = bus.consume("signal", "correlator")
+            messages = bus.consume("signal", "correlator", tenant_id="test-tenant")
             if messages:
                 bus.acknowledge(messages[0]["message_id"])
         # After 3 attempts, message should be dead
@@ -95,9 +95,9 @@ class TestMessageBus:
         assert len(pending) == 0
 
     def test_cleanup_expired(self, bus):
-        msg = Message(topic="signal", payload={"x": 1}, from_role="detector")
+        msg = Message(topic="signal", payload={"x": 1}, from_role="detector", tenant_id="test-tenant")
         bus.publish(msg)
-        messages = bus.consume("signal", "correlator")
+        messages = bus.consume("signal", "correlator", tenant_id="test-tenant")
         bus.acknowledge(messages[0]["message_id"])
         # Cleanup runs without error and returns count
         removed = bus.cleanup_expired(days=0)

@@ -77,10 +77,9 @@ class Department:
 
     def can_auto_execute(self, improvement: float, cost: float) -> bool:
         """Check if action is within auto-execute bounds."""
-        return (
-            improvement < self.AUTO_EXECUTE_MAX_IMPROVEMENT
-            and cost < self.AUTO_EXECUTE_MAX_COST
-        )
+        max_imp = getattr(self, "_auto_execute_max_improvement", self.AUTO_EXECUTE_MAX_IMPROVEMENT)
+        max_cost = getattr(self, "_auto_execute_max_cost", self.AUTO_EXECUTE_MAX_COST)
+        return improvement < max_imp and cost < max_cost
 
     def publish(self, topic: str, payload: dict[str, Any]) -> None:
         """Publish a message to the bus."""

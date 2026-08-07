@@ -302,6 +302,7 @@ CREATE INDEX IF NOT EXISTS idx_outcomes_applied ON improvement_outcomes (tenant_
 -- B-12: Message bus for inter-role communication
 CREATE TABLE IF NOT EXISTS agent_messages (
     message_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
     topic TEXT NOT NULL,
     payload TEXT NOT NULL,
     from_role TEXT NOT NULL,
@@ -311,8 +312,9 @@ CREATE TABLE IF NOT EXISTS agent_messages (
     consume_count INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'consumed', 'dead'))
 );
-CREATE INDEX IF NOT EXISTS idx_messages_topic_status ON agent_messages (topic, status);
-CREATE INDEX IF NOT EXISTS idx_messages_to_role ON agent_messages (to_role, status);
+CREATE INDEX IF NOT EXISTS idx_messages_tenant ON agent_messages (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_messages_topic_status ON agent_messages (tenant_id, topic, status);
+CREATE INDEX IF NOT EXISTS idx_messages_to_role ON agent_messages (tenant_id, to_role, status);
 CREATE INDEX IF NOT EXISTS idx_messages_created ON agent_messages (created_at);
 
 -- B-13: Role registry
@@ -1404,11 +1406,12 @@ class AgentOSStore:
         with self._tx() as conn:
             conn.execute(
                 """INSERT INTO agent_messages
-                   (message_id, topic, payload, from_role, to_role, created_at,
+                   (message_id, tenant_id, topic, payload, from_role, to_role, created_at,
                     consume_count, status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     message_dict["message_id"],
+                    message_dict["tenant_id"],
                     message_dict["topic"],
                     message_dict["payload"],
                     message_dict["from_role"],
@@ -1421,9 +1424,9 @@ class AgentOSStore:
 
 
     def consume_bus_messages(
-        self, topic: str, role: str, limit: int = 10
+        self, topic: str, role: str, tenant_id: str | None = None, limit: int = 10
     ) -> list[dict[str, Any]]:
-        """Get pending messages for a topic + role (or broadcast)."""
+        """Get pending messages for a topic + role + tenant (or broadcast)."""
         with self._lock:
             rows = (
                 self._get_conn()
@@ -1431,9 +1434,10 @@ class AgentOSStore:
                     """SELECT * FROM agent_messages
                        WHERE topic = ? AND status = 'pending'
                          AND (to_role = ? OR to_role IS NULL)
+                         AND tenant_id = ?
                        ORDER BY created_at ASC
                        LIMIT ?""",
-                    (topic, role, limit),
+                    (topic, role, tenant_id, limit),
                 )
                 .fetchall()
             )
@@ -1463,7 +1467,7 @@ class AgentOSStore:
 
 
     def get_pending_bus_messages(
-        self, topic: str | None = None
+        self, topic: str | None = None, limit: int = 1000
     ) -> list[dict[str, Any]]:
         """Get pending messages (for monitoring)."""
         with self._lock:
@@ -1473,8 +1477,9 @@ class AgentOSStore:
                     .execute(
                         """SELECT * FROM agent_messages
                            WHERE topic = ? AND status = 'pending'
-                           ORDER BY created_at ASC""",
-                        (topic,),
+                           ORDER BY created_at ASC
+                           LIMIT ?""",
+                        (topic, limit),
                     )
                     .fetchall()
                 )
@@ -1484,7 +1489,9 @@ class AgentOSStore:
                     .execute(
                         """SELECT * FROM agent_messages
                            WHERE status = 'pending'
-                           ORDER BY created_at ASC"""
+                           ORDER BY created_at ASC
+                           LIMIT ?""",
+                        (limit,),
                     )
                     .fetchall()
                 )

@@ -81,6 +81,7 @@ class EvolverRole(AgentRole):
                             "requires_approval": True,
                         },
                         to_role="coordinator",
+                        tenant_id=self._tenant_id,
                     )
         except Exception:
             log.exception("Evolver gap analysis failed")

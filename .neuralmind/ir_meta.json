@@ -5,20 +5,20 @@
   "source_schema_version": 2,
   "coverage": "coarse",
   "built_at_commit": "",
-  "created_at": "2026-08-07T17:40:04.279032+00:00",
-  "nodes": 1262,
-  "edges": 2166,
-  "clusters": 18,
-  "synapses": 1721,
+  "created_at": "2026-08-07T20:58:34.355633+00:00",
+  "nodes": 1836,
+  "edges": 3225,
+  "clusters": 25,
+  "synapses": 1873,
   "node_kinds": {
-    "file": 38,
-    "document": 520,
-    "symbol": 252,
-    "function": 452
+    "file": 55,
+    "document": 848,
+    "symbol": 316,
+    "function": 617
   },
   "languages": {
-    "python": 1003,
-    "markdown": 259
+    "python": 1410,
+    "markdown": 426
   },
   "validation": {
     "ok": true,
@@ -33,9 +33,9 @@
       {
         "severity": "warning",
         "code": "stale_synapse",
-        "message": "220 learned synapse(s) reference nodes not in the current index (memory predates a rebuild; harmless but prunable)."
+        "message": "239 learned synapse(s) reference nodes not in the current index (memory predates a rebuild; harmless but prunable)."
       }
     ]
   },
-  "neuralmind_version": "3.0.0"
+  "neuralmind_version": "3.1.1"
 }
