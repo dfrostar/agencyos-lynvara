@@ -65,9 +65,9 @@ QA:        ✅ COMPLETE (all CRITICAL/HIGH/MEDIUM patched, QA_REPORT.md created)
 
 | ID | Task | Level | Est. | Status | Verification |
 |----|------|-------|------|--------|--------------|
-| B-09 | Self-improving engine (full) | 9 | 6h | 🔴 TODO | System learns from outcomes, modifies behavior |
-| B-10 | Weekly self-improvement report | 9 | 2h | 🔴 TODO | Report shows delta week-over-week |
-| B-11 | Level 10 architecture design | 10 | 4h | 🔴 TODO | Architecture doc with L10 section (deferred scope) |
+| B-09 | Self-improving engine (full) | 9 | 6h | ✅ DONE | System learns from outcomes, modifies behavior |
+| B-10 | Weekly self-improvement report | 9 | 2h | ✅ DONE | Report shows delta week-over-week |
+| B-11 | Level 10 architecture design | 10 | 4h | ✅ DONE | Architecture doc with L10 section (deferred scope) |
 
 **Deliverable:** System modifies its own behavior based on results, reports on improvement, L10 path documented.
 
@@ -122,6 +122,10 @@ QA:        ✅ COMPLETE (all CRITICAL/HIGH/MEDIUM patched, QA_REPORT.md created)
 | B-06 | Signal sources | — | signal_sources.py + store.py, 20 tests |
 | B-07 | Feedback→knowledge verified | — | feedback.py:68-109, 318-339 |
 | B-08 | Weekly review | — | weekly_review.py, 7 routes |
+| B-09 | Self-improving engine (full) | ✅ | behavior_learner, proactive_explorer, self_improvement |
+| B-10 | Weekly self-improvement report | ✅ | weekly_self_improvement.py |
+| B-11 | Level 10 architecture doc | ✅ | ARCHITECTURE-L10.md |
+| QA-3 | GLM-5.2 adversarial QA (9 vectors) | ✅ | 5 MEDIUM findings patched, 4 safe |
 
 ---
 
