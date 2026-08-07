@@ -1,118 +1,127 @@
-# Next Session Prompt — AgencyOS Phase 4 QA + Phase 5 Planning
+# Next Session Prompt — AgencyOS Phase 5 + RFI Submission
 
 **asOf:** 2026-08-08  
-**Tests:** 210/210 (178 existing + 32 Phase 4, minus 2 known failures)  
-**Repo:** `/home/dtfrost/agencyOS/`
+**Tests:** 207/207 passing  
+**Repo:** `/home/dtfrost/agencyOS/`  
+**Branch:** master (commit `7825089`)
 
 ---
 
-## Context
+## Current State
 
-AgencyOS Phase 4 (Intelligence Layer) is **code-complete but not yet QA-verified**. The feedback loop is wired: outcomes → BehaviorLearner → parameter adjustment → proactive exploration → weekly report. All 5 new modules are in place, but 2 tests are failing and the GLM-5.2 adversarial review is still pending.
+### AgencyOS — Phase 4 Complete ✅
+
+| Phase | Focus | Status |
+|-------|-------|--------|
+| 1 | Server + Knowledge base + Financials | ✅ DONE |
+| 2 | Webhook worker + Signal sources + Feedback loop + Weekly review | ✅ DONE |
+| 3 | Dashboard + Health score | ✅ DONE |
+| 4 | Self-improving engine + Weekly report + L10 architecture + QA-3 | ✅ DONE |
+
+**Phase 4 deliverables:**
+- `agent_os/behavior_learner.py` (282 lines) — outcome-driven parameter adjustment
+- `agent_os/proactive_explorer.py` (282 lines) — gap detection + adversarial probing
+- `agent_os/self_improvement.py` (251 lines) — engine wiring + 4 endpoints
+- `agent_os/weekly_self_improvement.py` (257 lines) — WoW delta report
+- GLM-5.2 adversarial QA: 9 attack vectors assessed, 5 MEDIUM findings patched, 4 safe
+- All docs updated: BRD, ARCHITECTURE, TRD, QA_REPORT, KANBAN
+
+### Phase 5: Level 7-8 — DEFERRED
+
+| ID | Task | Level | Est. | Status |
+|----|------|-------|------|--------|
+| B-12 | Message bus | 7 | — | DEFERRED |
+| B-13 | Role base class | 7 | — | DEFERRED |
+| B-14 | Detector role | 7 | — | DEFERRED |
+| B-15 | Correlator role | 7 | — | DEFERRED |
+| B-16 | Coordinator | 7 | — | DEFERRED |
+| B-17 | Outreach department | 8 | — | DEFERRED |
+| B-18 | Engagement department | 8 | — | DEFERRED |
+
+**Rationale for deferral:** Level 9 needs to be proven on real data (6+ months of outcomes) before L7-8 autonomy is safe to deploy.
 
 ---
 
-## Phase 4 Status (Built, Tests Partial, QA Pending)
+## Priority Options for Next Session
 
-| Component | Lines | Status |
-|-----------|-------|--------|
-| B-09 Outcome Tracking (`store.py`) | +200 | ✅ 5/5 tests pass |
-| B-09 BehaviorLearner | 276 | ✅ 5/5 tests pass |
-| B-09 ProactiveExplorer | 257 | 🟡 5/7 tests (2 `sqlite3.Row.get()` bugs) |
-| B-09 Server Wiring (`self_improvement.py`) | 251 | 🟡 5/7 tests (fixture bug) |
-| B-10 Weekly Report | 252 | ✅ 5/5 tests pass |
-| B-11 L10 Architecture | doc | ✅ Complete |
+### Option A: RFI Submission (URGENT — Due Aug 14, 7 days)
+
+The CMMC RFI response is drafted but **NOT SUBMITTED**. Deadline is August 14, 2026.
+
+**Current state:**
+- Draft: `cmmc20/docs/cmmc-watch/RFI-RESPONSE-DRAFT.md`
+- DOCX + PDF generated, emailed to darren.frost@gmail.com (thread: 68c677d8)
+- Issue #158 created: "🔴 PRIORITY: RFI Response Due Aug 14"
+- **Gap:** Draft reads like a white paper, not an RFI response. Only 1 of 7 RFI questions answered directly.
+
+**Tasks:**
+1. Restructure draft around the 7 RFI questions (direct Q&A format)
+2. Fill coverage gaps: Q2 (controls with uplift), Q3 (overhead/least improvement), Q4 (commercial capabilities), Q7 (resilience reforms)
+3. Add 1-page cover letter (excluded from 10-page limit)
+4. Regenerate DOCX/PDF
+5. Submit by email to:
+   - whs.mc-alex.ad.mbx.eosd-psb-branch-mailbox@mail.mil
+   - leanne.m.condren.civ@mail.mil
+
+**Submission addresses:**
+- `whs.mc-alex.ad.mbx.eosd-psb-branch-mailbox@mail.mil`
+- `leanne.m.condren.civ@mail.mil`
+
+### Option B: AgencyOS Phase 5 (Level 7-8)
+
+If you want to continue building, Phase 5 is the next technical milestone.
+
+**Pre-requisites before starting:**
+- L9 proven on real data (currently 0 real outcomes — all tests use synthetic data)
+- Safety architecture for autonomous roles
+- Human approval workflow for rule changes
+
+**Estimated effort:** ~30 hours total
+- B-12 Message bus: ~4h
+- B-13 Role base class: ~3h
+- B-14 Detector role: ~4h
+- B-15 Correlator role: ~4h
+- B-16 Coordinator: ~5h
+- B-17 Outreach department: ~5h
+- B-18 Engagement department: ~5h
+
+**Risk:** Building L7-8 before L9 is proven on real data creates scaffolding without validation. The honest path is to wire AgencyOS to real cmmc20 data first, let it learn from real outcomes, then add roles/departments.
+
+### Option C: cmmc20 Stripe Implementation
+
+The other agent has been working on cmmc20 (NeuralMind fixes, Issue model, pre-deploy scripts). Stripe integration is queued in the unified kanban.
+
+**Tasks:**
+- Create Stripe service + checkout endpoint
+- Add subscription gating middleware
+- Deploy updated docker-compose + .env to Render
 
 ---
 
-## This Session's Work (Priority Order)
+## Recommendation
 
-### Step 1: Fix Known Test Failures
+**Submit the RFI first.** The deadline is firm, and the draft needs structural revision. After submission, decide between:
+- Starting Phase 5 (if you want to keep building)
+- Wiring AgencyOS to real cmmc20 data (if you want to validate L9)
+- Stripe implementation (if you want to unblock cmmc20 monetization)
 
-**2 failures in `proactive_explorer.py`:**
-- `test_run_cycle_proposes_for_stale`
-- `test_run_cycle_updates_proposals_made`
+---
 
-Both caused by `row.get('history', '')` on `sqlite3.Row` at line 135. Fix:
-```python
-# Before:
-f"... History: {row.get('history', '')}"
-# After:
-f"... History: {row['history'] or ''}"
-```
-
-**6 failures in `test_phase4.py` engine endpoints:**
-All caused by the server fixture not passing `self_improvement_engine` to `create_app()`. Fix: update the `server` fixture to create a `SelfImprovementEngine` instance and pass it.
-
-### Step 2: Verify All Tests Green
+## Quick Reference
 
 ```bash
-cd /home/dtfrost/agencyOS && python -m pytest tests/ -q --tb=short
-# Expected: 210/210 passing
-```
-
-### Step 3: Dispatch GLM-5.2 Adversarial QA (QA-3)
-
-Review scope (7 files):
-
-| File | Lines | Focus |
-|------|-------|-------|
-| `agent_os/behavior_learner.py` | 276 | Lambda drift, cooldown extremes, outcome bypass |
-| `agent_os/proactive_explorer.py` | 257 | SQL injection via metric_name, unbounded proposals |
-| `agent_os/self_improvement.py` | 251 | Thread safety, store connection leaks, recursion |
-| `agent_os/weekly_self_improvement.py` | 252 | AVG(delta) None crash, report data integrity |
-| `agent_os/promotion.py` (+25) | - | outcome_recorder DI, exception masking |
-| `agent_os/auto_trigger.py` (+10) | - | Callback chain integrity |
-| `agent_os/server.py` (+30) | - | Auth bypass on new endpoints |
-
-**Adversarial angles:**
-
-| Angle | Attack Vector | Severity |
-|-------|--------------|----------|
-| Outcome recording bypass | Can outcome_recorder be None silently? | CRITICAL |
-| Lambda drift | Can lambda bypass _LAMBDA_MIN/MAX? | HIGH |
-| Cooldown drift | Can cooldown reach 0 or infinity? | HIGH |
-| ProactiveExplorer injection | metric_name in adversarial query | CRITICAL |
-| Background thread crash | _behavior_loop exception handling | MEDIUM |
-| Store connection leak | SQLite connection lifecycle | HIGH |
-| Auth bypass on engine endpoints | /engine/status without token | CRITICAL |
-| AutoTriggerLoop recursion | signal→proposal→experiment loop | MEDIUM |
-| AVG(delta) None crash | Empty outcome stats | LOW |
-
-### Step 4: Patch Verified Findings
-
-For each GLM-5.2 finding:
-1. Re-read actual source (don't trust subagent summary)
-2. If CRITICAL → Full RED-GREEN TDD (test first, watch fail, patch, watch pass)
-3. If HIGH → Test alongside patch
-4. If MEDIUM/LOW → Patch + run existing tests
-
-### Step 5: Update Docs to SOTA
-
-All behavior-changing commits must update docs in the same commit:
-- `KANBAN.md` — Mark Phase 4 QA complete
-- `QA_REPORT.md` — Add GLM-5.2 findings, patches, test counts
-- `ARCHITECTURE.md` — Update Honest Capability Map (Phase 4 + QA)
-- `BRD.md` — Mark B-09/B-10/B-11 acceptance criteria
-- `TRD.md` — Update module structure to include new modules
-
-### Step 6: Commit + Push
-
-Conventional commit format:
-- `test: fix sqlite3.Row.get() in proactive_explorer`
-- `fix: wire SelfImprovementEngine to test fixture`
-- `security: patch GLM-5.2 CRITICAL findings`
-- `docs: update KANBAN, QA_REPORT, ARCHITECTURE for Phase 4`
-
----
-
-## Next Session Kickoff
-
-```bash
+# AgencyOS
 cd /home/dtfrost/agencyOS
-# Fix tests, dispatch GLM-5.2 QA, patch, commit
+python -m pytest tests/ -q --tb=short          # Run tests (207 pass)
+python -m agent_os.server                       # Start server
+curl http://localhost:9000/health               # Health check
+
+# cmmc20
+cd /home/dtfrost/cmmc20
+git log --oneline -5                            # Recent commits
+cat docs/cmmc-watch/RFI-RESPONSE-DRAFT.md       # RFI draft
 ```
 
 ---
 
-*Pattern: SOTA Build Loop v2.0 | Prompt version: v2026.08.08.1 | Last updated: 2026-08-08*
+*Pattern: SOTA Build Loop v2.0 | Prompt version: v2026.08.08.2 | Last updated: 2026-08-08*
