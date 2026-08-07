@@ -19,6 +19,7 @@ from .auth import AuthContext, SessionStore
 from .engagements import create_engagement_routes
 from .experiment import ExperimentRunner
 from .feedback import create_feedback_routes
+from .knowledge import create_knowledge_routes
 from .outreach import create_outreach_routes
 from .signals import SignalDetector
 from .store import AgentOSStore
@@ -434,8 +435,11 @@ def create_app(
         get_auth=_default_get_auth,
     )
 
+    # Get knowledge routes
+    knowledge_routes = create_knowledge_routes(store=store, session_store=session_store)
+
     # Merge routes
-    all_routes = {**existing_routes, **outreach_routes, **engagement_routes, **feedback_routes}
+    all_routes = {**existing_routes, **outreach_routes, **engagement_routes, **feedback_routes, **knowledge_routes}
     
     # Add webhook config routes
     all_routes.update(_create_webhook_config_routes(store, session_store))
