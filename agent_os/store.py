@@ -208,6 +208,50 @@ CREATE INDEX IF NOT EXISTS idx_webhook_configs_tenant ON webhook_configs (tenant
 CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS revenue_entries (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    engagement_id TEXT,
+    description TEXT NOT NULL,
+    amount REAL NOT NULL,
+    currency TEXT DEFAULT 'USD',
+    source TEXT DEFAULT 'manual',
+    recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_revenue_tenant ON revenue_entries (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_revenue_recorded ON revenue_entries (tenant_id, recorded_at);
+
+CREATE TABLE IF NOT EXISTS cost_entries (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    engagement_id TEXT,
+    description TEXT NOT NULL,
+    amount REAL NOT NULL,
+    currency TEXT DEFAULT 'USD',
+    category TEXT DEFAULT 'operational',
+    recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_cost_tenant ON cost_entries (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_cost_recorded ON cost_entries (tenant_id, recorded_at);
+
+CREATE TABLE IF NOT EXISTS invoices (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    engagement_id TEXT,
+    invoice_number TEXT NOT NULL,
+    amount REAL NOT NULL,
+    currency TEXT DEFAULT 'USD',
+    status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'sent', 'paid', 'overdue', 'cancelled')),
+    notes TEXT,
+    due_at TEXT,
+    paid_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_invoices_tenant ON invoices (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices (tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_invoices_number ON invoices (tenant_id, invoice_number);
 """
 
 

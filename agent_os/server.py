@@ -18,6 +18,7 @@ from .api import create_agent_os_routes
 from .auth import AuthContext, SessionStore
 from .engagements import create_engagement_routes
 from .experiment import ExperimentRunner
+from .finance import create_finance_routes
 from .feedback import create_feedback_routes
 from .knowledge import create_knowledge_routes
 from .outreach import create_outreach_routes
@@ -438,8 +439,11 @@ def create_app(
     # Get knowledge routes
     knowledge_routes = create_knowledge_routes(store=store, session_store=session_store)
 
+    # Get finance routes
+    finance_routes = create_finance_routes(store=store, session_store=session_store)
+
     # Merge routes
-    all_routes = {**existing_routes, **outreach_routes, **engagement_routes, **feedback_routes, **knowledge_routes}
+    all_routes = {**existing_routes, **outreach_routes, **engagement_routes, **feedback_routes, **knowledge_routes, **finance_routes}
     
     # Add webhook config routes
     all_routes.update(_create_webhook_config_routes(store, session_store))
