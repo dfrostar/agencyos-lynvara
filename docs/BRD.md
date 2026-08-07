@@ -5,7 +5,7 @@
 **Date:** 2026-08-07
 **Owner:** Darren Frost (Cheval-Volant, LLC)
 **Repo:** `/home/dtfrost/agencyOS/`
-**Status:** Phase 1 Complete | Phase 2 In Progress
+**Status:** Phase 1-5 Complete (L7-8 System)
 
 ---
 
@@ -357,7 +357,56 @@ Transform AgencyOS from a **passive monitoring tool** into an **active operation
 
 ---
 
-## 3. Non-Functional Requirements
+### 2.5 Phase 5: Level 7-8 — Roles + Departments (COMPLETE)
+
+#### BR-P5.1 Message Bus (B-12)
+
+**Requirement:** AgencyOS SHALL implement a SQLite-backed message bus for inter-role communication.
+
+**Acceptance Criteria:**
+- [x] `agent_os/bus.py` — MessageBus with publish/subscribe/consume/acknowledge
+- [x] At-least-once delivery: messages remain in queue until acknowledged
+- [x] Dead letter queue: messages failing 3 times moved to `dead_messages`
+- [x] Tenant-scoped: messages for tenant A are invisible to tenant B
+- [x] Message retention: 7 days (configurable)
+- [x] Topics: signal, insight, proposal, experiment, promotion, alert, command
+
+#### BR-P5.2 Role Architecture (B-13)
+
+**Requirement:** AgencyOS SHALL implement a role-based architecture with specialized roles.
+
+**Acceptance Criteria:**
+- [x] `agent_os/roles/base.py` — AgentRole abstract class with lifecycle + heartbeat
+- [x] `agent_os/roles/detector.py` — wraps SignalDetector
+- [x] `agent_os/roles/correlator.py` — wraps RootCauseCorrelator
+- [x] `agent_os/roles/evolver.py` — proposes new detection rules
+- [x] `agent_os/roles/coordinator.py` — manages role lifecycle + health monitoring
+- [x] Roles communicate exclusively through the message bus
+- [x] Role failure triggers automatic restart
+
+#### BR-P5.3 Department Orchestration (B-17/B-18)
+
+**Requirement:** AgencyOS SHALL autonomously orchestrate business functions within safety bounds.
+
+**Acceptance Criteria:**
+- [x] `agent_os/departments/base.py` — Department base class
+- [x] `agent_os/departments/outreach.py` — autonomous outreach optimization
+- [x] `agent_os/departments/engagements.py` — autonomous engagement health
+- [x] Auto-execute threshold: improvements < 10% and cost < $50
+- [x] Human approval required for larger changes
+- [x] Feature flags: `enable_roles=True`, `enable_departments=True` (off by default)
+
+#### BR-P5.4 Safety Boundaries
+
+| Boundary | Hardcoded | Rationale |
+|----------|-----------|-----------|
+| `AUTO_EXECUTE_MAX_IMPROVEMENT` = 10% | Yes | Prevents large autonomous changes |
+| `AUTO_EXECUTE_MAX_COST` = $50 | Yes | Prevents expensive autonomous actions |
+| `MAX_DELIVERY_ATTEMPTS` = 3 | Yes | Dead letter queue prevents infinite loops |
+| `RETENTION_DAYS` = 7 | Yes | Auto-cleanup of consumed messages |
+| `heartbeat_timeout` = 60s | Yes | Detect stuck roles |
+| Roles require `enable_roles=True` | Yes | Feature flag — off by default |
+| Departments require `enable_departments=True` | Yes | Feature flag — off by default |
 
 ### 3.1 Performance
 

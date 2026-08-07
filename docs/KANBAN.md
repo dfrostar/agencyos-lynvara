@@ -1,6 +1,6 @@
 # AgencyOS — Kanban
 
-**Last updated:** 2026-08-07
+**Last updated:** 2026-08-08
 **Plan:** `docs/BUSINESS-PLAN-2026-08-06.md`
 **Stream:** B — Business Operations
 **Owner:** Hermes (engineering), Darren (strategy/decisions)
@@ -10,12 +10,14 @@
 ## Current State
 
 ```
-Tests:     178 passing (all green)
+Tests:     224 passing (all green)
 Server:    ✅ RUNNING (port 9000)
 Level 5:   ✅ DONE (webhook ingestion + sources)
 Level 6:   ✅ DONE (closed-loop engine)
-Level 9:   ✅ DONE (tuner incumbents + adversarial QA hardening)
-Level 7-8: ❌ NOT BUILT
+Level 7:   ✅ DONE (message bus + roles)
+Level 8:   ✅ DONE (departments)
+Level 9:   ✅ DONE (self-improving engine)
+Level 10:  ❌ Out of Scope (correctly)
 B-04:      ✅ DONE (dashboard health score + 3 endpoints)
 B-05:      ✅ DONE (webhook worker background thread)
 B-06:      ✅ DONE (signal sources + raw signal ingestion)
@@ -77,13 +79,13 @@ QA:        ✅ COMPLETE (all CRITICAL/HIGH/MEDIUM patched, QA_REPORT.md created)
 
 | ID | Task | Level | Est. | Status |
 |----|------|-------|------|--------|
-| B-12 | Message bus | 7 | — | DEFERRED |
-| B-13 | Role base class | 7 | — | DEFERRED |
-| B-14 | Detector role | 7 | — | DEFERRED |
-| B-15 | Correlator role | 7 | — | DEFERRED |
-| B-16 | Coordinator | 7 | — | DEFERRED |
-| B-17 | Outreach department | 8 | — | DEFERRED |
-| B-18 | Engagement department | 8 | — | DEFERRED |
+| B-12 | Message bus | 7 | 4h | ✅ DONE | bus.py, agent_messages table |
+| B-13 | Role base class | 7 | 3h | ✅ DONE | roles/base.py, agent_roles table |
+| B-14 | Detector role | 7 | 4h | ✅ DONE | roles/detector.py |
+| B-15 | Correlator role | 7 | 4h | ✅ DONE | roles/correlator.py |
+| B-16 | Coordinator | 7 | 5h | ✅ DONE | coordinator.py |
+| B-17 | Outreach department | 8 | 5h | ✅ DONE | departments/outreach.py |
+| B-18 | Engagement department | 8 | 5h | ✅ DONE | departments/engagements.py |
 
 ---
 

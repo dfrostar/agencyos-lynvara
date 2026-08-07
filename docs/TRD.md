@@ -5,7 +5,7 @@
 **Date:** 2026-08-07
 **Owner:** Darren Frost (Cheval-Volant, LLC)
 **Repo:** `/home/dtfrost/agencyOS/`
-**Status:** Phase 1-4 Complete | Phase 5 In Progress
+**Status:** Phase 1-5 Complete (L7-8 System)
 
 ---
 
@@ -1504,10 +1504,9 @@ CREATE INDEX idx_outcomes_applied ON improvement_outcomes (tenant_id, applied_at
 2. **Phase 2:** Wire webhook worker, connect signal sources, feedback loop, weekly review ✅
 3. **Phase 3:** Deploy business health dashboard ✅
 4. **Phase 4:** Deploy self-improving engine, self-improvement report, L10 architecture ✅
-5. **Phase 5:** Deploy message bus + coordinator (internal refactor) 🔴 TODO
-6. **Phase 6:** Wrap existing detector/correlator as roles 🔴 TODO
-7. **Phase 7:** Deploy Evolver role 🔴 TODO
-8. **Phase 8:** Enable department orchestration (tenant-by-tenant) 🔴 TODO
+5. **Phase 5:** Deploy message bus, roles, coordinator, departments ✅
+6. **Phase 6:** Integrate with cmmc20 (separate task) 🔴 TODO
+7. **Phase 7:** Deploy to Render (production) 🔴 TODO
 
 ### 9.2 Rollback Plan
 
@@ -1526,7 +1525,60 @@ ENABLE_DEPARTMENTS = os.environ.get("ENABLE_DEPARTMENTS", "false").lower() == "t
 
 ---
 
-## 10. Adversarial QA Checklist
+## 10. Phase 5 Architecture
+
+### 10.1 Message Flow
+
+```
+Webhook ingestion → metric_value message (bus) → DetectorRole
+    ↓ (signal detected)
+signal message (bus) → CorrelatorRole
+    ↓ (correlated)
+insight message (bus) → EvolverRole
+    ↓ (gap analysis)
+proposal message (bus) → Coordinator → PromotionEngine
+    ↓ (experiment run)
+outcome → BehaviorLearner → parameter adjustment
+    ↓ (signal detected)
+Department._poll() → consumes signal → takes action (within bounds)
+```
+
+### 10.2 Role Registry
+
+```sql
+CREATE TABLE agent_roles (
+    role_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    role_name TEXT NOT NULL CHECK(role_name IN ('detector', 'correlator', 'evolver', 'coordinator')),
+    status TEXT NOT NULL DEFAULT 'active',
+    last_heartbeat TEXT,
+    config TEXT,
+    messages_processed INTEGER NOT NULL DEFAULT 0,
+    messages_failed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(tenant_id, role_name)
+);
+```
+
+### 10.3 Message Bus Schema
+
+```sql
+CREATE TABLE agent_messages (
+    message_id TEXT PRIMARY KEY,
+    topic TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    from_role TEXT NOT NULL,
+    to_role TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    consumed_at TEXT,
+    consume_count INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'consumed', 'dead'))
+);
+```
+
+---
+
+## 11. Adversarial QA Checklist
 
 | Claim | Verification Method | Status |
 |-------|-------------------|--------|
