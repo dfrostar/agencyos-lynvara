@@ -298,6 +298,37 @@ CREATE INDEX IF NOT EXISTS idx_outcomes_tenant ON improvement_outcomes (tenant_i
 CREATE INDEX IF NOT EXISTS idx_outcomes_metric ON improvement_outcomes (tenant_id, metric_name);
 CREATE INDEX IF NOT EXISTS idx_outcomes_verdict ON improvement_outcomes (tenant_id, verdict);
 CREATE INDEX IF NOT EXISTS idx_outcomes_applied ON improvement_outcomes (tenant_id, applied_at);
+
+-- B-12: Message bus for inter-role communication
+CREATE TABLE IF NOT EXISTS agent_messages (
+    message_id TEXT PRIMARY KEY,
+    topic TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    from_role TEXT NOT NULL,
+    to_role TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    consumed_at TEXT,
+    consume_count INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'consumed', 'dead'))
+);
+CREATE INDEX IF NOT EXISTS idx_messages_topic_status ON agent_messages (topic, status);
+CREATE INDEX IF NOT EXISTS idx_messages_to_role ON agent_messages (to_role, status);
+CREATE INDEX IF NOT EXISTS idx_messages_created ON agent_messages (created_at);
+
+-- B-13: Role registry
+CREATE TABLE IF NOT EXISTS agent_roles (
+    role_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    role_name TEXT NOT NULL CHECK(role_name IN ('detector', 'correlator', 'evolver', 'coordinator')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'paused', 'error')),
+    last_heartbeat TEXT,
+    config TEXT,
+    messages_processed INTEGER NOT NULL DEFAULT 0,
+    messages_failed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(tenant_id, role_name)
+);
+CREATE INDEX IF NOT EXISTS idx_roles_tenant ON agent_roles (tenant_id, status);
 """
 
 
@@ -1365,8 +1396,171 @@ class AgentOSStore:
         return dict(row)
 
 
-# Module-level singleton for process-wide use
-_store: AgentOSStore | None = None
+    # ── B-12: Message bus methods ──────────────────────────────────
+
+
+    def insert_bus_message(self, message_dict: dict[str, Any]) -> None:
+        """Insert a message into the bus."""
+        with self._tx() as conn:
+            conn.execute(
+                """INSERT INTO agent_messages
+                   (message_id, topic, payload, from_role, to_role, created_at,
+                    consume_count, status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    message_dict["message_id"],
+                    message_dict["topic"],
+                    message_dict["payload"],
+                    message_dict["from_role"],
+                    message_dict.get("to_role"),
+                    message_dict.get("created_at"),
+                    message_dict.get("consume_count", 0),
+                    message_dict.get("status", "pending"),
+                ),
+            )
+
+
+    def consume_bus_messages(
+        self, topic: str, role: str, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        """Get pending messages for a topic + role (or broadcast)."""
+        with self._lock:
+            rows = (
+                self._get_conn()
+                .execute(
+                    """SELECT * FROM agent_messages
+                       WHERE topic = ? AND status = 'pending'
+                         AND (to_role = ? OR to_role IS NULL)
+                       ORDER BY created_at ASC
+                       LIMIT ?""",
+                    (topic, role, limit),
+                )
+                .fetchall()
+            )
+        return [dict(r) for r in rows]
+
+
+    def acknowledge_bus_message(self, message_id: str) -> None:
+        """Mark a message as consumed (or dead if over max attempts)."""
+        with self._tx() as conn:
+            row = conn.execute(
+                "SELECT consume_count FROM agent_messages WHERE message_id = ?",
+                (message_id,),
+            ).fetchone()
+            if row is None:
+                return
+            new_count = row["consume_count"] + 1
+            if new_count >= 3:
+                status = "dead"
+            else:
+                status = "consumed"
+            conn.execute(
+                """UPDATE agent_messages
+                   SET status = ?, consume_count = ?, consumed_at = datetime('now')
+                   WHERE message_id = ?""",
+                (status, new_count, message_id),
+            )
+
+
+    def get_pending_bus_messages(
+        self, topic: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Get pending messages (for monitoring)."""
+        with self._lock:
+            if topic:
+                rows = (
+                    self._get_conn()
+                    .execute(
+                        """SELECT * FROM agent_messages
+                           WHERE topic = ? AND status = 'pending'
+                           ORDER BY created_at ASC""",
+                        (topic,),
+                    )
+                    .fetchall()
+                )
+            else:
+                rows = (
+                    self._get_conn()
+                    .execute(
+                        """SELECT * FROM agent_messages
+                           WHERE status = 'pending'
+                           ORDER BY created_at ASC"""
+                    )
+                    .fetchall()
+                )
+        return [dict(r) for r in rows]
+
+
+    def cleanup_expired_bus_messages(self, days: int = 7) -> int:
+        """Remove consumed/dead messages older than `days`."""
+        with self._tx() as conn:
+            cur = conn.execute(
+                """DELETE FROM agent_messages
+                   WHERE status IN ('consumed', 'dead')
+                     AND created_at <= datetime('now', ?)""",
+                (f"-{days} days",),
+            )
+            return cur.rowcount
+
+
+    # ── B-13: Role registry methods ────────────────────────────────
+
+
+    def register_role(self, role_dict: dict[str, Any]) -> None:
+        """Register a role in the registry."""
+        with self._tx() as conn:
+            conn.execute(
+                """INSERT OR REPLACE INTO agent_roles
+                   (role_id, tenant_id, role_name, status, config, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    role_dict["role_id"],
+                    role_dict["tenant_id"],
+                    role_dict["role_name"],
+                    role_dict.get("status", "active"),
+                    role_dict.get("config"),
+                    role_dict.get("created_at"),
+                ),
+            )
+
+
+    def update_role_heartbeat(self, role_id: str, status: str = "active") -> None:
+        """Update role heartbeat."""
+        with self._tx() as conn:
+            conn.execute(
+                """UPDATE agent_roles
+                   SET last_heartbeat = datetime('now'), status = ?
+                   WHERE role_id = ?""",
+                (status, role_id),
+            )
+
+
+    def update_role_counters(
+        self, role_id: str, messages_processed: int = 0, messages_failed: int = 0
+    ) -> None:
+        """Increment role message counters."""
+        with self._tx() as conn:
+            conn.execute(
+                """UPDATE agent_roles
+                   SET messages_processed = messages_processed + ?,
+                       messages_failed = messages_failed + ?
+                   WHERE role_id = ?""",
+                (messages_processed, messages_failed, role_id),
+            )
+
+
+    def get_roles(self, tenant_id: str) -> list[dict[str, Any]]:
+        """Get all roles for a tenant."""
+        with self._lock:
+            rows = (
+                self._get_conn()
+                .execute(
+                    "SELECT * FROM agent_roles WHERE tenant_id = ?",
+                    (tenant_id,),
+                )
+                .fetchall()
+            )
+        return [dict(r) for r in rows]
 
 
 def get_store(db_path: Path | None = None) -> AgentOSStore:

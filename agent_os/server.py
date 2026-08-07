@@ -17,6 +17,7 @@ from typing import Any, Callable
 
 from .api import create_agent_os_routes
 from .auth import AuthContext, SessionStore
+from .bus import MessageBus
 from .dashboard import create_dashboard_routes
 from .engagements import create_engagement_routes
 from .experiment import ExperimentRunner
@@ -24,6 +25,12 @@ from .finance import create_finance_routes
 from .feedback import create_feedback_routes
 from .knowledge import create_knowledge_routes
 from .outreach import create_outreach_routes
+from .roles.coordinator import CoordinatorRole
+from .roles.detector import DetectorRole
+from .roles.correlator import CorrelatorRole
+from .roles.evolver import EvolverRole
+from .departments.outreach import OutreachDepartment
+from .departments.engagements import EngagementDepartment
 from .signal_sources import create_signal_source_routes
 from .signals import SignalDetector
 from .store import AgentOSStore
@@ -404,6 +411,9 @@ def create_app(
     session_store: SessionStore | None = None,
     signal_detector: SignalDetector | None = None,
     self_improvement_engine: Any = None,
+    enable_roles: bool = False,
+    enable_departments: bool = False,
+    tenant_id: str = "default",
 ) -> dict[tuple[str, str], Callable]:
     """Create all route handlers."""
     if store is None:
@@ -417,6 +427,9 @@ def create_app(
     if signal_detector is None:
         signal_detector = SignalDetector()
     experiment_runner = ExperimentRunner()
+
+    # B-12: Create message bus
+    bus = MessageBus(store)
 
     # Get existing routes from api.py
     existing_routes = create_agent_os_routes(
@@ -491,6 +504,26 @@ def create_app(
     else:
         self_improvement_routes = {}
 
+    # B-14-B-16: Role routes (optional, behind enable_roles flag)
+    role_routes = {}
+    if enable_roles:
+        coordinator = CoordinatorRole(tenant_id, bus, store)
+        detector = DetectorRole(tenant_id, bus, store)
+        correlator = CorrelatorRole(tenant_id, bus, store)
+        evolver = EvolverRole(tenant_id, bus, store)
+        coordinator.register_role(detector)
+        coordinator.register_role(correlator)
+        coordinator.register_role(evolver)
+        coordinator.start()
+
+    # B-17-B-18: Department routes (optional, enable_departments flag)
+    dept_routes = {}
+    if enable_departments:
+        outreach_dept = OutreachDepartment(tenant_id, bus, store)
+        engagement_dept = EngagementDepartment(tenant_id, bus, store)
+        outreach_dept.start()
+        engagement_dept.start()
+
     # Merge routes
     all_routes = {
         **existing_routes,
@@ -504,6 +537,8 @@ def create_app(
         **weekly_self_improvement_routes,
         **dashboard_routes,
         **self_improvement_routes,
+        **role_routes,
+        **dept_routes,
     }
     
     # Add webhook config routes

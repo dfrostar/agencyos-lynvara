@@ -2,172 +2,232 @@
   "files": [
     {
       "path": "agent_os/outreach.py",
-      "mtime": 1785855470.8631847,
-      "content_hash": "9e89fabd507c05208d3e83e69849b8f8a041099a14177257b1370f43ea459090",
-      "extracted_at": 1785886804.50574
+      "mtime": 1786055663.3572974,
+      "content_hash": "c8f9252c26a3c3d5b5778df8cc4f4a43a5ef1fed61a1022cf47d2dc7a30eb96c",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/auto_trigger.py",
       "mtime": 1786049438.9133599,
       "content_hash": "0e3578d235db3056d581efd25c3842607a8e159f79e4f2fc18368250c8b806d9",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/engagements.py",
-      "mtime": 1785860881.2733412,
+      "mtime": 1786048684.87754,
       "content_hash": "efc4dc90923436b4bd896625729d50bb8ad7513f028f5a94e8ac82305e16a260",
-      "extracted_at": 1785886804.50574
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/store.py",
-      "mtime": 1786049258.0892565,
-      "content_hash": "e465d840a3a2e34a055b9c6362f22ab1f3ee9f4f3d1988a19b65505975617249",
-      "extracted_at": 1786054081.617915
+      "mtime": 1786123193.3212667,
+      "content_hash": "c46e1365016a6f80b121149b7da528c2becc84d4958ca7afcede2c6d29c09a2c",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "tests/test_agent_os_api.py",
-      "mtime": 1786048684.8835402,
-      "content_hash": "2f739d3c0650b0b0843be9aa66eadccd6c84eea36fbdb65c6948a2e913ea9ca9",
-      "extracted_at": 1786054081.617915
+      "mtime": 1786072376.5361803,
+      "content_hash": "740d072618d489ad40cb01d2525c06f2e781cbd0502244bd5244037809e86848",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/cli.py",
       "mtime": 1786048684.87654,
       "content_hash": "9c2f2e86236c6240876dda601883cd0235d11cad791f557efcd9e25932ab738b",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "tests/test_agent_os.py",
       "mtime": 1786048684.8835402,
       "content_hash": "4b522f8fe055709403ddf79d9ae9c0b90f6b120ef1a6136fe2c9219b5c7b8ff4",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/server.py",
-      "mtime": 1786048684.87754,
-      "content_hash": "ac1e4998aef0d8c30a1f5e387e00c1b2d252e6617dcfad40a1f28cf1bded9e8f",
-      "extracted_at": 1786054081.617915
+      "mtime": 1786124008.5731015,
+      "content_hash": "c33bd14ae44d258ba280ac61ba28e870d8b765aed7aae56fd18863e2b5151e96",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/signals.py",
       "mtime": 1786049691.928958,
       "content_hash": "731e5b50d599e3f255130f3e0f75f927e2f6f8509464c3f56886fdeab6f9f1db",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/correlator.py",
       "mtime": 1786048684.87654,
       "content_hash": "720f18e1cb60b669f6934b7bd70ba0c3e78929d9a2d250586d4cdfe09d17ae58",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/proposal_store.py",
       "mtime": 1786048684.87754,
       "content_hash": "17aaf2747eddc180250abbfd0b61d0e3fe071ced5aaa27908ac3f21195085bae",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/adversarial.py",
-      "mtime": 1785765700.7154205,
+      "mtime": 1786048684.87654,
       "content_hash": "12c1be54f81e011ff2a6d4b9e5bb2f4c68c642f943434ce895346c2b1a76cc9f",
-      "extracted_at": 1785886804.50574
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/signals_log.py",
       "mtime": 1786048684.87754,
       "content_hash": "3159edcac80c50c84e5df76e90792af40e6695eefcd440b1fc7da3755c4afead",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/__init__.py",
-      "mtime": 1785775134.2328365,
-      "content_hash": "022789d25e82665648347021cdfce94b2bc03ef70c876f2ccdb3117c66606d7e",
-      "extracted_at": 1785886804.50574
+      "mtime": 1786124015.9591808,
+      "content_hash": "302a4d6c1cdea28d5ee3cf29115ba60ba9c868395e9204607f68bad0704e82b6",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/api.py",
-      "mtime": 1786048684.87654,
-      "content_hash": "298e5fd22ca963be1bb7c33ea27ed5e029b0852a429b0477ecb2ab0f262a5ada",
-      "extracted_at": 1786054081.617915
+      "mtime": 1786073407.0644329,
+      "content_hash": "74726e1a94d8d2e13a5ec5cd6e07969da154879d0fc432d81a83e56171d93db4",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "tests/test_agent_os_v2.py",
       "mtime": 1786048684.8835402,
       "content_hash": "04d060257140364809fb7d40e72532bb7970b2212c5fb79871f28adda9acbb6a",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "tests/test_feedback.py",
-      "mtime": 1786048684.8835402,
-      "content_hash": "05ba3ced755269b0089b920b0bcd5659c2cf5cadd0341d757350352ac8b3b10c",
-      "extracted_at": 1786054081.617915
+      "mtime": 1786057082.248785,
+      "content_hash": "6915e557b42803fc20c60b541fd5e5908a2626ebedd46d6190a301318b0a78f2",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/feedback.py",
-      "mtime": 1785875354.063128,
-      "content_hash": "f8244cf48c9080ebdc3121330d43c4c2f8759abba2a9078180519ed8229b060e",
-      "extracted_at": 1785886804.50574
+      "mtime": 1786055648.8851318,
+      "content_hash": "cb3873ddac19fda0b52986fe6bb89438531ba61e34cf76899d689439e0cc158f",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/tenant.py",
       "mtime": 1786048684.87854,
       "content_hash": "fe69b89fd3e3ebfe5a09c4c948dab003c7ad143f7685579bb71ed03e708b2d66",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/experiment.py",
       "mtime": 1786049562.06679,
       "content_hash": "3bb06704fb5aed478c123d96f6100e772df5365cbed608f844472e7b51c9cb60",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/postgres.py",
       "mtime": 1786048684.87754,
       "content_hash": "76655399e4005494d1f9f1c270797d2dcdc19a57bcea797742b89a5a16d90d62",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/promotion.py",
       "mtime": 1786049552.4716787,
       "content_hash": "554d8dca27d6c585d906273bb14febb198d6da9045c831bb8919f39854ed0ca4",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/auth.py",
-      "mtime": 1785775134.1458576,
-      "content_hash": "c3d6d1e82381a99c5f3b7e1b555fe4c392a52bc71f434f3a6c2e74ab78a81410",
-      "extracted_at": 1785886804.50574
+      "mtime": 1786071889.6612926,
+      "content_hash": "a9cd70841a573a946c13d09ea79e1f954774baa3bd31940182509c78b3bc4965",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/governance.py",
-      "mtime": 1786048684.87754,
-      "content_hash": "c8d18521989c2dc9c4dbf0d6198f4d7d376c16d499b832bdbecf128e3021507a",
-      "extracted_at": 1786054081.617915
+      "mtime": 1786071893.1623335,
+      "content_hash": "c7df134ac2ddab8d13ca18427f3f793d4dcb14f7932f54b08847fffbf76eb9c3",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/sources/custom.py",
       "mtime": 1786048684.87754,
       "content_hash": "c845d6f9e814297655febbd75751556a2ef41e6b656b46579eccb4428915a746",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/sources/github.py",
       "mtime": 1786048684.87754,
       "content_hash": "fdedc82fb670dbec0f75ddd2c9423c946fc4e2288d27cd262d15c5ea0c51926f",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/webhooks.py",
-      "mtime": 1786048684.87854,
-      "content_hash": "aed322d03444f5fa6ad199c66a0d105fe96378c68ebeae613c60f19eb077298b",
-      "extracted_at": 1786054081.617915
+      "mtime": 1786071891.579315,
+      "content_hash": "1d99f987a53ba7b67bd5b497d40e30418f325baee827e891a140a228009182ad",
+      "extracted_at": 1786124404.2088706
     },
     {
       "path": "agent_os/sources/stripe.py",
       "mtime": 1786048684.87754,
       "content_hash": "a40396028f8d1584a8aaa6ae1a60841d9cc5b668f3d0fffbdff0467e2e986768",
-      "extracted_at": 1786054081.617915
+      "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "agent_os/knowledge.py",
+      "mtime": 1786075966.1077595,
+      "content_hash": "050d859ef24ec583b05d65b92c58376fe4becc4128cc92126ac4f4be81e2dc62",
+      "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "tests/test_finance.py",
+      "mtime": 1786076351.9862487,
+      "content_hash": "2bacfed6b29b32ab56cec89803ddb4f03da5bc873a4388557d33f9f278828e2b",
+      "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "tests/test_knowledge.py",
+      "mtime": 1786076413.0884993,
+      "content_hash": "bb8b3edd200fdca518106c59488742c7b6d0ba2d19defcde768eadb3ad93a18d",
+      "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "agent_os/finance.py",
+      "mtime": 1786102648.3998508,
+      "content_hash": "b6991c9174286145f98564082972a3f90c469bad3f62bcd2f73e3563faa80e4d",
+      "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "tests/test_server.py",
+      "mtime": 1786073351.8808503,
+      "content_hash": "85489ec7e8ac2766673f6b3ad1ddd51526cafa17453e12440315b028dfacd731",
+      "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "tests/test_phase2.py",
+      "mtime": 1786123587.6455317,
+      "content_hash": "bd9361b1993205c42863d190effa223f0584d101208f54795a1c9e72fa8b2672",
+      "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "agent_os/dashboard.py",
+      "mtime": 1786123989.2828941,
+      "content_hash": "b7c4905e49b4f49bd102cdd5c11473f6aa8f6372954fa04e8879ef6392117505",
+      "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "agent_os/sources/__init__.py",
+      "mtime": 1786048684.87754,
+      "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "agent_os/weekly_review.py",
+      "mtime": 1786123330.2576866,
+      "content_hash": "2285f7f61ae02b2e727e9722cc1bfc2bc2801c53c80218c2c4984accba4c5722",
+      "extracted_at": 1786124404.2088706
+    },
+    {
+      "path": "agent_os/signal_sources.py",
+      "mtime": 1786123261.0999691,
+      "content_hash": "35503e5e0e4ced9e60046fae2a7d26f35742cc2664b79626bbf56b896c4ea16b",
+      "extracted_at": 1786124404.2088706
     }
   ],
-  "saved_at": 1786054081.6194024
+  "saved_at": 1786124404.2118416
 }

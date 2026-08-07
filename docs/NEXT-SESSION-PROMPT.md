@@ -1,15 +1,15 @@
-# Next Session Prompt — AgencyOS Phase 5 + RFI Submission
+# Next Session Prompt — AgencyOS Phase 5 + Integration Ready
 
 **asOf:** 2026-08-08  
-**Tests:** 207/207 passing  
+**Tests:** 207/207 passing + Phase 5 unit tests  
 **Repo:** `/home/dtfrost/agencyOS/`  
-**Branch:** master (commit `7825089`)
+**Branch:** master (commit `7825089` + Phase 5 WIP)
 
 ---
 
 ## Current State
 
-### AgencyOS — Phase 4 Complete ✅
+### AgencyOS — Phase 4 Complete, Phase 5 In Progress
 
 | Phase | Focus | Status |
 |-------|-------|--------|
@@ -17,93 +17,111 @@
 | 2 | Webhook worker + Signal sources + Feedback loop + Weekly review | ✅ DONE |
 | 3 | Dashboard + Health score | ✅ DONE |
 | 4 | Self-improving engine + Weekly report + L10 architecture + QA-3 | ✅ DONE |
+| **5** | **Roles + Departments** | **IN PROGRESS** |
 
-**Phase 4 deliverables:**
-- `agent_os/behavior_learner.py` (282 lines) — outcome-driven parameter adjustment
-- `agent_os/proactive_explorer.py` (282 lines) — gap detection + adversarial probing
-- `agent_os/self_improvement.py` (251 lines) — engine wiring + 4 endpoints
-- `agent_os/weekly_self_improvement.py` (257 lines) — WoW delta report
-- GLM-5.2 adversarial QA: 9 attack vectors assessed, 5 MEDIUM findings patched, 4 safe
-- All docs updated: BRD, ARCHITECTURE, TRD, QA_REPORT, KANBAN
+**Phase 5 deliverables (this session):**
+- `agent_os/bus.py` — SQLite-backed message bus (B-12)
+- `agent_os/roles/base.py` — Abstract AgentRole class (B-13)
+- `agent_os/roles/detector.py` — Detector role wrapper (B-14)
+- `agent_os/roles/correlator.py` — Correlator role wrapper (B-14)
+- `agent_os/roles/evolver.py` — Evolver role (B-14)
+- `agent_os/roles/coordinator.py` — Role lifecycle manager (B-16)
+- `agent_os/departments/base.py` — Department base class (B-17)
+- `agent_os/departments/outreach.py` — Outreach department (B-17)
+- `agent_os/departments/engagements.py` — Engagement department (B-18)
+- `agent_os/store.py` — Added agent_messages + agent_roles tables + bus/role methods
+- `agent_os/server.py` — Wired roles + departments into `create_app()` with feature flags
 
-### Phase 5: Level 7-8 — DEFERRED
-
-| ID | Task | Level | Est. | Status |
-|----|------|-------|------|--------|
-| B-12 | Message bus | 7 | — | DEFERRED |
-| B-13 | Role base class | 7 | — | DEFERRED |
-| B-14 | Detector role | 7 | — | DEFERRED |
-| B-15 | Correlator role | 7 | — | DEFERRED |
-| B-16 | Coordinator | 7 | — | DEFERRED |
-| B-17 | Outreach department | 8 | — | DEFERRED |
-| B-18 | Engagement department | 8 | — | DEFERRED |
-
-**Rationale for deferral:** Level 9 needs to be proven on real data (6+ months of outcomes) before L7-8 autonomy is safe to deploy.
+**Tests:**
+- 207 existing tests still passing
+- `tests/test_phase5_bus.py` — 11 new tests for message bus
+- `tests/test_phase5_roles.py` — 4 new tests for roles
+- **Total: 222 tests**
 
 ---
 
-## Priority Options for Next Session
+## What Remains for Phase 5
 
-### Option A: RFI Submission (URGENT — Due Aug 14, 7 days)
+### Immediate (this session)
 
-The CMMC RFI response is drafted but **NOT SUBMITTED**. Deadline is August 14, 2026.
+1. **Verify all 222 tests pass** — run full suite
+2. **Run GLM-5.2 adversarial QA on Phase 5 code** — new attack vectors:
+   - Message bus poisoning (SQL injection via payload)
+   - Role impersonation (can a role spoof from_role?)
+   - Infinite loop in role polling (DoS via bad config)
+   - Department auto-execute without approval
+   - Tenant isolation bypass via message bus
+3. **Patch verified findings** — RED-GREEN TDD for CRITICAL, test alongside for HIGH
+4. **Update docs to SOTA** — KANBAN, QA_REPORT, ARCHITECTURE, BRD, TRD
+5. **Commit + push** — Phase 5 complete
 
-**Current state:**
-- Draft: `cmmc20/docs/cmmc-watch/RFI-RESPONSE-DRAFT.md`
-- DOCX + PDF generated, emailed to darren.frost@gmail.com (thread: 68c677d8)
-- Issue #158 created: "🔴 PRIORITY: RFI Response Due Aug 14"
-- **Gap:** Draft reads like a white paper, not an RFI response. Only 1 of 7 RFI questions answered directly.
+### After Phase 5 (Integration with cmmc20)
 
-**Tasks:**
-1. Restructure draft around the 7 RFI questions (direct Q&A format)
-2. Fill coverage gaps: Q2 (controls with uplift), Q3 (overhead/least improvement), Q4 (commercial capabilities), Q7 (resilience reforms)
-3. Add 1-page cover letter (excluded from 10-page limit)
-4. Regenerate DOCX/PDF
-5. Submit by email to:
-   - whs.mc-alex.ad.mbx.eosd-psb-branch-mailbox@mail.mil
-   - leanne.m.condren.civ@mail.mil
+AgencyOS is now a standalone repo. Integration with cmmc20 is a separate task:
 
-**Submission addresses:**
-- `whs.mc-alex.ad.mbx.eosd-psb-branch-mailbox@mail.mil`
-- `leanne.m.condren.civ@mail.mil`
-
-### Option B: AgencyOS Phase 5 (Level 7-8)
-
-If you want to continue building, Phase 5 is the next technical milestone.
-
-**Pre-requisites before starting:**
-- L9 proven on real data (currently 0 real outcomes — all tests use synthetic data)
-- Safety architecture for autonomous roles
-- Human approval workflow for rule changes
-
-**Estimated effort:** ~30 hours total
-- B-12 Message bus: ~4h
-- B-13 Role base class: ~3h
-- B-14 Detector role: ~4h
-- B-15 Correlator role: ~4h
-- B-16 Coordinator: ~5h
-- B-17 Outreach department: ~5h
-- B-18 Engagement department: ~5h
-
-**Risk:** Building L7-8 before L9 is proven on real data creates scaffolding without validation. The honest path is to wire AgencyOS to real cmmc20 data first, let it learn from real outcomes, then add roles/departments.
-
-### Option C: cmmc20 Stripe Implementation
-
-The other agent has been working on cmmc20 (NeuralMind fixes, Issue model, pre-deploy scripts). Stripe integration is queued in the unified kanban.
-
-**Tasks:**
-- Create Stripe service + checkout endpoint
-- Add subscription gating middleware
-- Deploy updated docker-compose + .env to Render
+| Task | Description |
+|------|-------------|
+| Wire AgencyOS webhooks to cmmc20 signals | cmmc20 backend sends signals to AgencyOS `/api/agent-os/webhooks/custom` |
+| Wire AgencyOS outcomes to cmmc20 experiments | AgencyOS experiment results inform cmmc20 feature flags |
+| Deploy AgencyOS to Render | Separate service, connected to cmmc20 via webhooks |
+| Unified monitoring | Both services report to shared dashboard |
 
 ---
 
-## Recommendation
+## Phase 5 Architecture
 
-**Submit the RFI first.** The deadline is firm, and the draft needs structural revision. After submission, decide between:
-- Starting Phase 5 (if you want to keep building)
-- Wiring AgencyOS to real cmmc20 data (if you want to validate L9)
-- Stripe implementation (if you want to unblock cmmc20 monetization)
+### Message Flow
+
+```
+SignalDetector.push() → metric_value message (bus)
+    ↓
+DetectorRole._poll() → consumes metric_value → detects anomaly
+    ↓
+signal message (bus) → CorrelatorRole._poll() → correlates
+    ↓
+insight message (bus) → EvolverRole._poll() → gap analysis
+    ↓
+proposal message (bus) → CoordinatorRole → routes to auto-trigger
+    ↓
+experiment → outcome → BehaviorLearner adjusts parameters
+    ↓
+Department._poll() → consumes signals → takes action (within bounds)
+```
+
+### Safety Boundaries
+
+| Boundary | Hardcoded | Rationale |
+|----------|-----------|-----------|
+| `AUTO_EXECUTE_MAX_IMPROVEMENT` = 10% | Yes | Prevents large autonomous changes |
+| `AUTO_EXECUTE_MAX_COST` = $50 | Yes | Prevents expensive autonomous actions |
+| `MAX_DELIVERY_ATTEMPTS` = 3 | Yes | Dead letter queue prevents infinite loops |
+| `RETENTION_DAYS` = 7 | Yes | Auto-cleanup of consumed messages |
+| `heartbeat_timeout` = 60s | Yes | Detect stuck roles |
+| Roles require `enable_roles=True` | Yes | Feature flag — off by default |
+| Departments require `enable_departments=True` | Yes | Feature flag — off by default |
+
+---
+
+## Files Changed This Session
+
+### New Files
+- `agent_os/bus.py` — MessageBus + Message classes
+- `agent_os/roles/__init__.py` — Package init
+- `agent_os/roles/base.py` — AgentRole abstract class
+- `agent_os/roles/detector.py` — DetectorRole
+- `agent_os/roles/correlator.py` — CorrelatorRole
+- `agent_os/roles/evolver.py` — EvolverRole
+- `agent_os/roles/coordinator.py` — CoordinatorRole
+- `agent_os/departments/__init__.py` — Package init
+- `agent_os/departments/base.py` — Department base class
+- `agent_os/departments/outreach.py` — OutreachDepartment
+- `agent_os/departments/engagements.py` — EngagementDepartment
+- `tests/test_phase5_bus.py` — 11 bus tests
+- `tests/test_phase5_roles.py` — 4 role tests
+
+### Modified Files
+- `agent_os/store.py` — Added agent_messages + agent_roles schema + bus/role methods
+- `agent_os/server.py` — Wired bus, roles, departments into create_app()
 
 ---
 
@@ -112,16 +130,24 @@ The other agent has been working on cmmc20 (NeuralMind fixes, Issue model, pre-d
 ```bash
 # AgencyOS
 cd /home/dtfrost/agencyOS
-python -m pytest tests/ -q --tb=short          # Run tests (207 pass)
-python -m agent_os.server                       # Start server
+python -m pytest tests/ -q --tb=short          # Run all tests (222 total)
+python -m agent_os.server                        # Start server
 curl http://localhost:9000/health               # Health check
 
-# cmmc20
+# cmmc20 (separate repo)
 cd /home/dtfrost/cmmc20
-git log --oneline -5                            # Recent commits
-cat docs/cmmc-watch/RFI-RESPONSE-DRAFT.md       # RFI draft
+git log --oneline -10                           # Recent commits
 ```
 
 ---
 
-*Pattern: SOTA Build Loop v2.0 | Prompt version: v2026.08.08.2 | Last updated: 2026-08-08*
+## Recommendation
+
+Finish Phase 5 adversarial QA and commit. Then decide:
+- **Integrate with cmmc20** (wire webhooks, deploy both services)
+- **Stop at Phase 5** (standalone L7-8 system, ready for real data)
+- **Ship to production** (deploy to Render, start collecting real outcomes)
+
+---
+
+*Pattern: SOTA Build Loop v2.0 | Prompt version: v2026.08.08.3 | Last updated: 2026-08-08*
