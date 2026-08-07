@@ -1,11 +1,11 @@
 # AgencyOS — Technical Requirements Document (TRD)
 ## Levels 5/7/8 Gap Closure
 
-**Version:** 1.0.0
-**Date:** 2026-08-05
+**Version:** 2.0.0
+**Date:** 2026-08-07
 **Owner:** Darren Frost (Cheval-Volant, LLC)
-**Repo:** `/home/dtfrost5/agencyOS/`
-**Status:** DRAFT
+**Repo:** `/home/dtfrost/agencyOS/`
+**Status:** Phase 1 Complete | Phase 2 In Progress
 
 ---
 
@@ -50,16 +50,18 @@ agent_os/
 ├── outreach.py               # Outreach extraction (existing)
 ├── engagements.py            # Engagement extraction (existing)
 ├── feedback.py               # Feedback extraction (existing)
-├── postgres.py               # PostgreSQL client (existing)
-├── adversarial.py            # Adversarial QA (existing)
-│
-├── webhooks.py               # NEW: Webhook ingestion layer
+├── knowledge.py              # Knowledge base (Phase 1)
+├── finance.py                # Financial tracking (Phase 1)
+├── webhooks.py               # Webhook ingestion (Phase 1)
 ├── sources/
 │   ├── __init__.py
-│   ├── github.py             # NEW: GitHub event normalizer
-│   ├── stripe.py             # NEW: Stripe event normalizer
-│   └── custom.py             # NEW: Custom event normalizer
-│
+│   ├── github.py             # GitHub normalizer (Phase 1)
+│   ├── stripe.py             # Stripe normalizer (Phase 1)
+│   └── custom.py             # Custom normalizer (Phase 1)
+├── postgres.py               # PostgreSQL client (existing)
+├── adversarial.py            # Adversarial QA (existing)
+├── tenant.py                 # Tenant registry (existing)
+└── signals_log.py            # Signals log (existing)
 ├── roles/
 │   ├── __init__.py
 │   ├── base.py               # NEW: AgentRole abstract class

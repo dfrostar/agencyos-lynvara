@@ -1,11 +1,11 @@
 # AgencyOS — Business Requirements Document (BRD)
 ## Levels 5/7/8 Gap Closure
 
-**Version:** 1.0.0
-**Date:** 2026-08-05
+**Version:** 2.0.0
+**Date:** 2026-08-07
 **Owner:** Darren Frost (Cheval-Volant, LLC)
-**Repo:** `/home/dtfrost5/agencyOS/`
-**Status:** DRAFT
+**Repo:** `/home/dtfrost/agencyOS/`
+**Status:** Phase 1 Complete | Phase 2 In Progress
 
 ---
 
@@ -52,7 +52,56 @@ Transform AgencyOS from a **passive monitoring tool** into an **active operation
 
 ## 2. Business Requirements
 
-### 2.1 Level 5 Completion: Real-Time Event Ingestion
+### 2.1 Phase 1: Server + Core Modules (COMPLETE)
+
+#### BR-P1.1 Server + Health Endpoint
+
+**Requirement:** AgencyOS SHALL run an HTTP server exposing API routes and a health endpoint.
+
+**Acceptance Criteria:**
+- [x] Server starts on port 9000 (configurable via `PORT` env var)
+- [x] `GET /health` returns `{"status": "ok", "version": "1.0.0"}` with HTTP 200
+- [x] All routes are tenant-scoped via bearer-token auth
+- [x] Body-based auth bypass removed (C1 fix)
+- [x] Body `tenant_id` trust removed (C2 fix)
+- [x] Max body size enforced at 1 MiB (H1 fix)
+- [x] Chunked encoding rejected (H2 fix)
+- [x] 145 tests passing across 7 test files
+
+#### BR-P1.2 Knowledge Base Module
+
+**Requirement:** AgencyOS SHALL provide tenant-scoped CRUD for organizational knowledge.
+
+**Acceptance Criteria:**
+- [x] `GET /api/agent-os/knowledge` — list entries for tenant
+- [x] `POST /api/agent-os/knowledge` — create entry
+- [x] `GET /api/agent-os/knowledge/{id}` — get single entry
+- [x] `PATCH /api/agent-os/knowledge/{id}` — update entry
+- [x] `DELETE /api/agent-os/knowledge/{id}` — delete entry
+- [x] `GET /api/agent-os/knowledge/search?q=...` — full-text search
+- [x] All routes require bearer-token auth
+- [x] All queries use parameterized SQL (no injection)
+- [x] Entry types: decision, sop, research, feedback, custom
+
+#### BR-P1.3 Financial Tracking
+
+**Requirement:** AgencyOS SHALL track revenue, costs, and invoices per tenant.
+
+**Acceptance Criteria:**
+- [x] `GET /api/agent-os/finance/revenue` — list revenue entries
+- [x] `POST /api/agent-os/finance/revenue` — record revenue
+- [x] `GET /api/agent-os/finance/costs` — list cost entries
+- [x] `POST /api/agent-os/finance/costs` — record cost
+- [x] `GET /api/agent-os/finance/invoices` — list invoices
+- [x] `POST /api/agent-os/finance/invoices` — create invoice
+- [x] `PATCH /api/agent-os/finance/invoices/{id}/status` — update status
+- [x] `GET /api/agent-os/finance/summary` — financial summary
+- [x] Invoice lifecycle: draft → sent → paid/overdue → cancelled
+- [x] Multi-currency support (USD, EUR, GBP)
+
+---
+
+### 2.2 Level 5 Completion: Real-Time Event Ingestion
 
 #### BR-5.1 Webhook Ingestion Capability
 

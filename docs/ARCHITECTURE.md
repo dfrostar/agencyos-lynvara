@@ -1,9 +1,9 @@
 # AgencyOS — Architecture for Framework Level Progression
 
-**Version:** 1.0.0
-**Date:** 2026-08-05
+**Version:** 2.0.0
+**Date:** 2026-08-07
 **Owner:** Darren Frost (Cheval-Volant, LLC)
-**Repo:** `/home/dtfrost5/agencyOS/`
+**Repo:** `/home/dtfrost/agencyOS/`
 
 ---
 
@@ -15,7 +15,13 @@ AgencyOS is a **Level 6 (Closed-Loop) system with Level 9 (Self-Improving) engin
 Signal → Insight → Proposal → Experiment → Promote/Rollback
 ```
 
-Currently deployed with **time-based triggers only** (cron jobs). The signal detector uses Page-Hinkley anomaly detection. Experiments run A/B comparisons with threshold evaluation. Promotions are automatic with rollback on regression.
+**Phase 1 Complete (2026-08-07):**
+- HTTP server with tenant-scoped API routes
+- Knowledge base (CRUD + full-text search)
+- Financial tracking (revenue, costs, invoices, reports)
+- Webhook ingestion layer (GitHub, Stripe, Custom normalizers)
+- Auth hardening: removed body-based bypass, removed tenant_id trust
+- Server hardening: 1 MiB body limit, chunked encoding rejection, Stripe replay protection
 
 ### Honest Capability Map
 
@@ -23,8 +29,8 @@ Currently deployed with **time-based triggers only** (cron jobs). The signal det
 |-------|--------|----------------|
 | 1-2 | ✅ DONE | CLI + cron |
 | 3 | ⚠️ Partial | Via Hermes, not AgencyOS-native |
-| 4 | ✅ DONE | HTTP server (:9000), SQLite, postgres client |
-| 5 | ⚠️ Partial | Signal detection works, **no webhook ingestion** |
+| 4 | ✅ DONE | HTTP server (:9000), SQLite |
+| 5 | ✅ DONE | Webhook ingestion, event normalizers |
 | 6 | ✅ DONE | Full closed-loop engine |
 | 7 | ❌ **NOT DONE** | Single engine, no role separation |
 | 8 | ❌ **NOT DONE** | Extraction planned, not autonomous |
@@ -33,274 +39,245 @@ Currently deployed with **time-based triggers only** (cron jobs). The signal det
 
 ---
 
-## 2. Target Architecture (Levels 5→7→8)
+## 2. Target Architecture (Levels 7→8)
 
-### 2.1 Level 5 Completion: Webhook Ingestion
+### 2.1 Level 7: Specialised Agent Teams
 
-**Current gap:** The signal detector only fires on cron-based polling. No external event can trigger the loop in real time.
+(Same as original — message bus, role base classes, evolver, coordinator)
 
-**Additions:**
+### 2.2 Level 8: Orchestrated Departments
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     External Event Sources                       │
-│  GitHub Webhooks │ Stripe Events │ Email Webhooks │ Custom API  │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                  Webhook Ingestion Layer                         │
-│                                                                  │
-│  POST /api/agent-os/webhooks/github                              │
-│  POST /api/agent-os/webhooks/stripe                              │
-│  POST /api/agent-os/webhooks/custom                              │
-│                                                                  │
-│  • HMAC signature verification                                   │
-│  • Event normalization → Signal format                           │
-│  • Idempotency dedup (event_id)                                  │
-│  • Tenant resolution from payload metadata                       │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                  Existing Signal Detector                        │
-│                  (Page-Hinkley anomaly)                          │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-                            ▼
-                        [Level 6 Loop]
-```
-
-**New modules:**
-- `agent_os/webhooks.py` — HMAC verification, event parsing, idempotency
-- `agent_os/sources/` — per-provider event normalizers (github.py, stripe.py, custom.py)
-- `agent_os/store.py` — `webhook_events` table with `event_id` UNIQUE constraint
-
-### 2.2 Level 7: Specialised Agent Teams
-
-**Current gap:** Single engine handles detection, correlation, proposal, and promotion. No role separation.
-
-**Target architecture:**
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Agent Role Registry                            │
-│                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │   Detector   │  │   Correlator │  │   Evolver    │          │
-│  │   (existing) │  │   (existing) │  │   (NEW)      │          │
-│  │              │  │              │  │              │          │
-│  │ • Page-Hinkley│  │ • Git diff   │  │ • Rule change│          │
-│  │ • Anomaly    │  │ • Config     │  │   proposals  │          │
-│  │   detection  │  │   change     │  │ • Gap-based  │          │
-│  │ • Webhook    │  │   matching   │  │   evolutions │          │
-│  │   ingestion  │  │ • Blame      │  │ • Cross-tenant│         │
-│  │              │  │   assignment │  │   pattern    │          │
-│  └──────┬───────┘  └──────┬───────┘  │   mining     │          │
-│         │                 │         └──────┬───────┘          │
-│         │                 │                │                   │
-│         └────────┬────────┴────────────────┘                   │
-│                  │                                              │
-│                  ▼                                              │
-│         ┌──────────────┐                                        │
-│         │   Message    │                                        │
-│         │   Bus        │                                        │
-│         │   (NEW)      │                                        │
-│         │              │                                        │
-│         │ • SQLite-    │                                        │
-│         │   backed     │                                        │
-│         │ • pub/sub    │                                        │
-│         │ • tenant-    │                                        │
-│         │   scoped     │         ┌──────────────┐              │
-│         └──────┬───────┘         │   Executor   │              │
-│                │                 │   (promo +   │              │
-│                │                 │   rollback)  │              │
-│                │                 └──────────────┘              │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**New modules:**
-- `agent_os/roles/base.py` — `AgentRole` abstract class
-- `agent_os/roles/detector.py` — wraps existing signal detector as role
-- `agent_os/roles/correlator.py` — wraps existing correlator as role
-- `agent_os/roles/evolver.py` — NEW: proposes rule changes based on gap analysis
-- `agent_os/bus.py` — SQLite-backed message bus with pub/sub
-- `agent_os/coordinator.py` — routes messages between roles, enforces role boundaries
-
-**Role responsibilities:**
-
-| Role | Reads | Writes | Cannot |
-|------|-------|--------|--------|
-| Detector | Raw metrics, webhook events | Signal records | Propose rule changes |
-| Correlator | Signals, git history, configs | Insights | Execute promotions |
-| Evolver | Experiment history, tuner incumbents | Rule change proposals | Direct metric access |
-| Executor | Proposals, experiments | Promotions, rollbacks | Generate insights |
-
-### 2.3 Level 8: Orchestrated Departments
-
-**Current gap:** Business functions (outreach, engagements, feedback) are extracted as read-only routes. No autonomous orchestration.
-
-**Target: Autonomous feedback loop for one department first (Outreach).**
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│              Orchestrated Department: Outreach                   │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  Sub-Loop 1: Lead Scoring                               │    │
-│  │  Signal: lead_score drops below threshold               │    │
-│  │  Action: Auto-create proposal to adjust scoring rules   │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  Sub-Loop 2: Sequence Optimization                      │    │
-│  │  Signal: reply_rate drops for a sequence template       │    │
-│  │  Action: A/B test new template variants                 │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  Sub-Loop 3: Follow-Up Timing                           │    │
-│  │  Signal: engagement_score low for leads idle > 7 days   │    │
-│  │  Action: Auto-schedule follow-up activity               │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│                                                                  │
-│  Human Approval Gate:                                            │
-│  • Auto-execute if improvement > 10%                             │
-│  • Require sign-off if improvement > 20% or cost > $X            │
-└─────────────────────────────────────────────────────────────────┘
-```
+(Same as original — outreach loop, engagement health)
 
 ---
 
-## 3. Data Model Extensions
+## 3. Data Model
 
-### 3.1 Webhook Events Table
+### 3.1 Phase 1 Tables (Implemented)
 
 ```sql
-CREATE TABLE webhook_events (
-    event_id TEXT PRIMARY KEY,          -- provider event ID (idempotency)
+-- Created by server.py _ensure_outreach_tables(), _ensure_engagement_tables(), _ensure_feedback_tables()
+-- Plus knowledge.py + finance.py store methods
+
+CREATE TABLE IF NOT EXISTS outreach_leads (
+    id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
-    source TEXT NOT NULL,               -- 'github', 'stripe', 'custom'
-    event_type TEXT NOT NULL,           -- 'push', 'payment.succeeded', etc.
-    payload TEXT NOT NULL,              -- raw JSON
-    normalized_signal_id TEXT,          -- FK to signals table (after processing)
+    company_name TEXT NOT NULL,
+    contact_name TEXT,
+    contact_email TEXT,
+    phone TEXT,
+    linkedin_url TEXT,
+    naics_code TEXT,
+    employee_count INTEGER,
+    source TEXT DEFAULT 'manual',
+    status TEXT DEFAULT 'identified',
+    notes TEXT,
+    assigned_to TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS outreach_activities (...);
+CREATE TABLE IF NOT EXISTS engagements (...);
+CREATE TABLE IF NOT EXISTS engagement_notes (...);
+CREATE TABLE IF NOT EXISTS skill_feedback (...);
+CREATE TABLE IF NOT EXISTS knowledge_entries (...);
+CREATE TABLE IF NOT EXISTS revenue_entries (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    engagement_id TEXT,
+    description TEXT NOT NULL,
+    amount REAL NOT NULL,
+    currency TEXT DEFAULT 'USD',
+    source TEXT DEFAULT 'manual',
+    recorded_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS cost_entries (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    engagement_id TEXT,
+    description TEXT NOT NULL,
+    amount REAL NOT NULL,
+    currency TEXT DEFAULT 'USD',
+    category TEXT DEFAULT 'operational',
+    recorded_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS invoices (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    engagement_id TEXT,
+    invoice_number TEXT NOT NULL,
+    amount REAL NOT NULL,
+    currency TEXT DEFAULT 'USD',
+    status TEXT DEFAULT 'draft',
+    notes TEXT,
+    due_at TEXT,
+    paid_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS webhook_events (
+    event_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    normalized_signal_id TEXT,
     received_at TEXT NOT NULL DEFAULT (datetime('now')),
     processed_at TEXT,
-    status TEXT DEFAULT 'pending'       -- pending, processed, failed
+    status TEXT DEFAULT 'pending'
+);
+CREATE TABLE IF NOT EXISTS webhook_configs (
+    config_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    secret TEXT NOT NULL,
+    enabled_events TEXT,
+    project_mapping TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id),
+    UNIQUE(tenant_id, source)
 );
 ```
 
-### 3.2 Message Bus Table
+### 3.2 Phase 2 Tables (Planned)
 
 ```sql
+-- Message bus (Level 7)
 CREATE TABLE agent_messages (
     message_id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
-    from_role TEXT NOT NULL,            -- 'detector', 'correlator', 'evolver'
-    to_role TEXT NOT NULL,              -- target role or 'broadcast'
-    message_type TEXT NOT NULL,         -- 'signal', 'insight', 'proposal', 'command'
-    payload TEXT NOT NULL,              -- JSON
+    topic TEXT NOT NULL,
+    from_role TEXT NOT NULL,
+    to_role TEXT,
+    payload TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     consumed_at TEXT,
-    consumed_by TEXT
+    consume_count INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'pending'
 );
-```
 
-### 3.3 Role Registry Table
-
-```sql
+-- Role registry (Level 7)
 CREATE TABLE agent_roles (
     role_id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
-    role_name TEXT NOT NULL,            -- 'detector', 'correlator', 'evolver'
-    status TEXT DEFAULT 'active',       -- active, paused, error
+    role_name TEXT NOT NULL,
+    status TEXT DEFAULT 'active',
     last_heartbeat TEXT,
-    config TEXT,                        -- JSON role-specific config
+    config TEXT,
     UNIQUE(tenant_id, role_name)
 );
 ```
 
 ---
 
-## 4. API Extensions
-
-### 4.1 Webhook Endpoints
+## 4. API Extensions (Implemented in Phase 1)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/agent-os/webhooks/github` | GitHub push/PR/issue events |
-| POST | `/api/agent-os/webhooks/stripe` | Stripe payment/subscription events |
-| POST | `/api/agent-os/webhooks/custom` | Custom tenant-defined events |
-
-### 4.2 Role Management Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/agent-os/roles` | List active roles |
-| POST | `/api/agent-os/roles/{name}/pause` | Pause a role |
-| POST | `/api/agent-os/roles/{name}/resume` | Resume a role |
-| GET | `/api/agent-os/messages` | Read unconsumed messages (for role) |
-
-### 4.3 Department Orchestration Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/agent-os/departments` | List orchestrated departments |
-| POST | `/api/agent-os/departments/outreach/activate` | Enable auto-loop for outreach |
-| GET | `/api/agent-os/departments/outreach/status` | Get loop health + recent actions |
+| GET | `/health` | Health check |
+| GET | `/api/agent-os/webhooks/stats` | Webhook health metrics |
+| POST | `/api/agent-os/webhooks/github` | GitHub events |
+| POST | `/api/agent-os/webhooks/strip` | Stripe events |
+| POST | `/api/agent-os/webhooks/custom` | Custom events |
+| GET/POST | `/api/agent-os/knowledge` | Knowledge base CRUD |
+| GET/PATCH/DELETE | `/api/agent-os/knowledge/{id}` | Single entry operations |
+| GET | `/api/agent-os/knowledge/search` | Full-text search |
+| GET/POST | `/api/agent-os/finance/revenue` | Revenue tracking |
+| GET/POST | `/api/agent-os/finance/costs` | Cost tracking |
+| GET/POST | `/api/agent-os/finance/invoices` | Invoice management |
+| PATCH | `/api/agent-os/finance/invoices/{id}/status` | Invoice status update |
+| GET | `/api/agent-os/finance/summary` | Financial summary |
+| GET | `/api/agent-os/finance/reports/monthly` | Monthly report |
+| GET/POST | `/api/agent-os/outreach/leads` | Outreach lead management |
+| GET/POST | `/api/agent-os/engagements` | Engagement management |
+| POST | `/api/agent-os/feedback` | Skill feedback submission |
 
 ---
 
 ## 5. Security & Governance
 
-### 5.1 Webhook Security
+### 5.1 Auth Hardening (Phase 1 Complete)
 
-- HMAC-SHA256 signature verification (provider-specific secrets)
-- Idempotency: `event_id` UNIQUE constraint prevents replay
-- Tenant resolution: from webhook payload metadata (repo → tenant mapping)
-- Rate limiting: max 100 webhook events/minute/tenant
+- Bearer-token auth via `Authorization: Bearer <token>` header
+- Body-based auth bypass removed (C1 — commit `b430df1`)
+- Body `tenant_id` trust removed (C2 — commit `219fe29`)
+- Session resolution: `extract_bearer_token` → `SessionStore.get_session`
 
-### 5.2 Role Isolation
+### 5.2 Input Validation
 
-- Each role has its own DB read/write scope (enforced in store layer)
-- Message bus is tenant-scoped: roles cannot cross tenant boundaries
-- Role actions are audit-logged with `actor_role` field
+- Body size limit: 1 MiB (H1 — commit `023f58c`)
+- Chunked encoding rejection (H2 — commit `023f58c`)
+- All SQL uses parameterized queries (`?` placeholders)
+- Search queries capped at 200 chars
+- Content fields capped (title: 500, content: 50,000)
+- Limit parameters capped at 200 (pagination)
 
-### 5.3 Human Approval Gates
+### 5.3 Webhook Security
 
-| Scenario | Auto-Execute Threshold | Human Approval Required |
-|----------|----------------------|------------------------|
-| Promotion (improvement < 10%) | ✅ Yes | No |
-| Promotion (improvement 10-20%) | ❌ No | Yes |
-| Promotion (improvement > 20%) | ❌ No | Yes |
-| New rule creation | ❌ No | Yes |
-| Rule deletion | ❌ No | Always |
-| Department deactivation | ❌ No | Always |
-
----
-
-## 6. Implementation Order
-
-| Phase | Level | Deliverable | Est. Effort |
-|-------|-------|-------------|-------------|
-| 1 | 5 (complete) | Webhook ingestion layer | 2-3 days |
-| 2 | 5 (complete) | GitHub + Stripe normalizers | 1 day |
-| 3 | 7 (start) | Message bus + role base classes | 2 days |
-| 4 | 7 (start) | Evolver role (rule proposals) | 2 days |
-| 5 | 7 (complete) | Coordinator + inter-role routing | 1 day |
-| 6 | 8 (start) | Outreach department loop | 2-3 days |
-| 7 | 8 (expand) | Engagement department loop | 2 days |
-
-**Total estimate: ~12-14 days of focused work.**
+- HMAC-SHA256 signature verification (constant-time `compare_digest`)
+- Idempotency: `event_id` UNIQUE constraint
+- Stripe replay protection: 5-minute timestamp window
+- Tenant resolution separated from signature verification
 
 ---
 
-## 7. Out of Scope (Correctly)
+## 6. Module Dependency Graph (Phase 1)
 
-- **Level 10 (Autonomous Business):** Not achievable or desirable. Human oversight is a feature for compliance work.
+```
+agent_os/
+├── __init__.py
+├── cli.py                    # Level 1-2
+├── server.py                 # HTTP server (Phase 1)
+├── store.py                  # SQLite persistence
+├── auth.py                   # Session management
+├── api.py                    # Core API routes
+├── signals.py                # Signal detection
+├── correlator.py             # Root cause correlation
+├── auto_trigger.py           # Auto-trigger loop
+├── experiment.py             # A/B experiment runner
+├── promotion.py              # Promotion/rollback engine
+├── governance.py             # RBAC governance
+├── outreach.py               # Outreach routes
+├── engagements.py            # Engagement routes
+├── feedback.py               # Feedback routes
+├── knowledge.py              # Knowledge base (Phase 1)
+├── finance.py                # Financial tracking (Phase 1)
+├── webhooks.py               # Webhook ingestion (Phase 1)
+├── sources/
+│   ├── github.py             # GitHub normalizer (Phase 1)
+│   ├── stripe.py             # Stripe normalizer (Phase 1)
+│   └── custom.py             # Custom normalizer (Phase 1)
+├── postgres.py               # PostgreSQL client
+├── adversarial.py            # Adversarial QA
+├── tenant.py                 # Tenant registry
+└── signals_log.py            # Signals log
+```
+
+---
+
+## 7. Implementation Order
+
+| Phase | Level | Deliverable | Status | Est. Effort |
+|-------|-------|-------------|--------|-------------|
+| 1 | 4+5 | Server, core modules, webhook ingestion | ✅ **DONE** | 7.5h |
+| 2 | 5 | Wire webhook worker, connect signal sources, feedback loop, weekly review | 🔴 TODO | 10h |
+| 3 | 4 | Business health dashboard | 🔴 TODO | 4h |
+| 4 | 9 | Self-improving engine (full), self-improvement report | 🔴 TODO | 12h |
+| 5 | 7 | Message bus, role base, detector/correlator/evolver roles, coordinator | 🔴 TODO | 8h |
+| 6 | 8 | Outreach department loop, engagement department loop | 🔴 TODO | 6h |
+
+---
+
+## 8. Out of Scope (Correctly)
+
+- **Level 10 (Autonomous Business):** Not achievable or desirable. Human oversight is a feature.
 - **Level 3 (Claude Code integration):** Hermes handles this. AgencyOS should not duplicate.
-- **Multi-engine consensus:** No need for 3-model agreement in internal tooling. Human is the arbiter.
+- **Multi-engine consensus:** No need for 3-model agreement in internal tooling.
+- **External action execution:** AgencyOS proposes actions but does not execute them externally.
 
 ---
 
-*Architecture validated against the 10-Level Framework. Target: Level 6 → Level 7 (complete) + Level 8 (one department).*
+*Architecture validated against the 10-Level Framework. Phase 1 complete. Next: Phase 2 (Automation Pipeline).*

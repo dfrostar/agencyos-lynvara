@@ -1,6 +1,6 @@
 # AgencyOS — Kanban
 
-**Last updated:** 2026-08-06
+**Last updated:** 2026-08-07
 **Plan:** `docs/BUSINESS-PLAN-2026-08-06.md`
 **Stream:** B — Business Operations
 **Owner:** Hermes (engineering), Darren (strategy/decisions)
@@ -10,12 +10,13 @@
 ## Current State
 
 ```
-Tests:     111 passing (all green, post-remediation)
-Server:    ❌ NOT RUNNING
+Tests:     145 passing (all green)
+Server:    ✅ RUNNING (port 9000)
+Level 5:   ✅ DONE (webhook ingestion + sources)
 Level 6:   ✅ DONE (closed-loop engine)
 Level 9:   ✅ DONE (tuner incumbents + adversarial QA hardening)
 Level 7-8: ❌ NOT BUILT
-QA:        ✅ COMPLETE (6 findings patched + adversarial QA closed)
+QA:        ✅ COMPLETE (all CRITICAL/HIGH/MEDIUM patched, QA_REPORT.md created)
 ```
 
 ---
@@ -24,11 +25,11 @@ QA:        ✅ COMPLETE (6 findings patched + adversarial QA closed)
 
 | ID | Task | Level | Est. | Status | Verification |
 |----|------|-------|------|--------|--------------|
-| B-01 | Start server, health endpoint | — | 0.5h | 🔴 TODO | `curl localhost:9000/health` → 200 |
-| B-02 | Knowledge base module | 4 | 4h | 🔴 TODO | CRUD + semantic search for decisions, SOPs, research |
-| B-03 | Financial tracking | 4 | 3h | 🔴 TODO | Revenue, costs, invoicing per client/engagement |
+| B-01 | Start server, health endpoint | — | 0.5h | ✅ DONE | `curl localhost:9000/health` → 200 |
+| B-02 | Knowledge base module | 4 | 4h | ✅ DONE | CRUD + search for decisions, SOPs, research |
+| B-03 | Financial tracking | 4 | 3h | ✅ DONE | Revenue, costs, invoicing per client/engagement |
 
-**Deliverable:** Server running, core data modules in place. Unblocks B-04, B-07, B-08.
+**Deliverable:** ✅ Server running, core data modules in place.
 
 ---
 
@@ -85,7 +86,7 @@ QA:        ✅ COMPLETE (6 findings patched + adversarial QA closed)
 
 | ID | Task | Blocked On |
 |----|------|------------|
-| B1 | Server not running | Phase 1 |
+| B1 | Server not running | Phase 1 (DONE) |
 | B2 | Real data | Phase 1 (wire to cmmc20 leads) |
 | B3 | Level 10 scope | Deferred to Phase 4 |
 
@@ -105,9 +106,13 @@ QA:        ✅ COMPLETE (6 findings patched + adversarial QA closed)
 | D2 | Framework docs (ARCH/BRD/PRD/TRD) | `30a7d21` | 5 docs |
 | D3 | Outreach extraction | `74521f2` | `outreach.py` + 12 tests |
 | D4 | Engagement extraction | `74521f2` | `engagements.py` + 8 tests |
-| D5 | 111 tests passing (post-remediation) | — | All green |
-| QA-1 | Remediation: 6 findings patched | `222d756`, `023f58c` | FK, body size, chunked, decorator, audit log |
-| QA-2 | Adversarial QA hardening | `023f58c` | Multi-value TE, body drain, webhook path, limit validation |
+| B-01 | Server + health endpoint | `d8678e5` | `server.py`, `agent_os/` init |
+| B-02 | Knowledge base module | `45f4928` | `knowledge.py` |
+| B-03 | Financial tracking | `6bc7a6f` | `finance.py` |
+| QA-1 | C1-C4 security patches | `b430df1`, `219fe29`, `222d756` | Auth bypass, tenant_id, FK, schema |
+| QA-2 | H1-H3 server hardening | `023f58c`, `219fe29` | Body size limit, chunked, Stripe replay |
+| QA-3 | M1-M3 cleanup | `023f58c` | Decorator, audit log, f-string |
+| QA-4 | Phase 1 inline review | — | This document |
 
 ---
 

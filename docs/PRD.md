@@ -1,11 +1,11 @@
 # AgencyOS — Product Requirements Document (PRD)
 ## Levels 5/7/8 Gap Closure
 
-**Version:** 1.0.0
-**Date:** 2026-08-05
+**Version:** 2.0.0
+**Date:** 2026-08-07
 **Owner:** Darren Frost (Cheval-Volant, LLC)
-**Repo:** `/home/dtfrost5/agencyOS/`
-**Status:** DRAFT
+**Repo:** `/home/dtfrost/agencyOS/`
+**Status:** Phase 1 Complete | Phase 2 In Progress
 
 ---
 
@@ -31,7 +31,46 @@ Transform AgencyOS from a passive monitoring tool into an **active operations la
 
 ## 2. Feature Requirements
 
-### 2.1 Level 5: Webhook Ingestion System
+### 2.0 Phase 1: Server + Core Modules (COMPLETE)
+
+#### Feature: Server + Health Endpoint
+
+**Status:** ✅ Implemented
+
+- HTTP server on port 9000 (configurable via `PORT` env var)
+- `GET /health` returns `{"status": "ok", "version": "1.0.0"}`
+- Body size limit: 1 MiB
+- Chunked encoding rejected
+- All routes require bearer-token auth (body-based bypass removed)
+
+#### Feature: Knowledge Base
+
+**Status:** ✅ Implemented
+
+- `GET /api/agent-os/knowledge` — list entries (paginated)
+- `POST /api/agent-os/knowledge` — create entry
+- `GET /api/agent-os/knowledge/{id}` — get single entry
+- `PATCH /api/agent-os/knowledge/{id}` — update entry
+- `DELETE /api/agent-os/knowledge/{id}` — delete entry
+- `GET /api/agent-os/knowledge/search?q=...` — full-text search
+- Entry types: decision, sop, research, feedback, custom
+- Tenant-scoped, auth required
+
+#### Feature: Financial Tracking
+
+**Status:** ✅ Implemented
+
+- Revenue entries (CRUD + list)
+- Cost entries (CRUD + list)
+- Invoice management (create, list, status update)
+- Financial summary (profit, margin, outstanding)
+- Invoice lifecycle: draft → sent → paid/overdue → cancelled
+- Multi-currency: USD, EUR, GBP
+- Tenant-scoped, auth required
+
+---
+
+### 2.1 Level 5: Webhook Ingestion System (COMPLETE)
 
 #### Feature: Webhook Receiver
 
