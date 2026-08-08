@@ -1,0 +1,3 @@
+# AgencyOS — Python dependencies
+
+asyncpg>=0.30.0
