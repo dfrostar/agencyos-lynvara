@@ -3,16 +3,16 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agencyos"
+name = "agencyos-lynvara"
 version = "1.0.0"
-description = "Multi-tenant, self-improving product operations layer for NeuralMind. Signal → insight → proposal → experiment → promote/rollback loop. Internal operator tooling."
+description = "AgencyOS fork for Lynvara telehealth — L6-L10 autonomous ops orchestration layer. Reads/writes ops_kb via REST API."
 readme = "README.md"
 license = { text = "Proprietary" }
 authors = [
-    { name = "Darren Frost", email = "hello@neuralmind.uk" }
+    { name = "Darren Frost", email = "darren@lynvara.com" }
 ]
 maintainers = [
-    { name = "Darren Frost", email = "hello@neuralmind.uk" }
+    { name = "Darren Frost", email = "darren@lynvara.com" }
 ]
 keywords = [
     "agent-os",
@@ -22,6 +22,8 @@ keywords = [
     "experiment-runner",
     "multi-tenant",
     "operator-tooling",
+    "lynvara",
+    "telehealth",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -34,7 +36,10 @@ classifiers = [
     "Typing :: Typed",
 ]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "httpx>=0.27.0",
+    "pydantic>=2.0.0",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -49,10 +54,10 @@ dev = [
 ]
 
 [project.scripts]
-agencyos = "agent_os.cli:main"
+agencyos-lynvara = "agent_os.cli:main"
 
 [project.urls]
-Repository = "https://github.com/dfrostar/agencyOS"
+Repository = "https://github.com/dfrostar/agencyos-lynvara"
 
 [tool.hatch.build.targets.wheel]
 packages = ["agent_os"]
@@ -73,14 +78,8 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = [
-    "E", "F", "W", "I", "N", "UP", "B", "C4", "T10", "ISC", "PIE", "RET",
-]
-ignore = [
-    "E501",
-    "B008",
-    "C901",
-]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "T10", "ISC", "PIE", "RET"]
+ignore = ["E501", "B008", "C901"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "F841", "PT011", "PT012"]
